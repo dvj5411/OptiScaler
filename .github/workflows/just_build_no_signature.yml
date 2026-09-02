@@ -7,11 +7,10 @@ name: Build (No Signing)
 
 on:
   workflow_dispatch:
-#  push:
-#    branches: [ "master" ]
-#  pull_request:
-#    branches: [ "master" ]
-    
+  push:
+    branches:
+      - warframe-transparent-d3d12-release
+
 env:
   # Path to the solution file relative to the root of the project.
   SOLUTION_FILE_PATH: .
