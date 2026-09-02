@@ -9,13 +9,10 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - warframe-transparent-d3d12-release
+      - warframe-no-hooktodevice
 
 env:
-  # Path to the solution file relative to the root of the project.
   SOLUTION_FILE_PATH: .
-
-  # Configuration type to build.
   BUILD_CONFIGURATION: Release
 
 permissions:
@@ -42,20 +39,14 @@ jobs:
 
         $instanceMatches = [regex]::Matches($text, $instancePattern).Count
         $deviceMatches = [regex]::Matches($text, $devicePattern).Count
-
-        if ($instanceMatches -ne 1) {
-          throw "Expected exactly one Vulkan_wDx12::GetInstanceProcAddr block, found $instanceMatches"
-        }
-        if ($deviceMatches -ne 1) {
-          throw "Expected exactly one Vulkan_wDx12::GetDeviceProcAddr block, found $deviceMatches"
-        }
+        if ($instanceMatches -ne 1) { throw "Expected exactly one Vulkan_wDx12::GetInstanceProcAddr block, found $instanceMatches" }
+        if ($deviceMatches -ne 1) { throw "Expected exactly one Vulkan_wDx12::GetDeviceProcAddr block, found $deviceMatches" }
 
         $text = [regex]::Replace($text, $instancePattern, "`n    // Warframe diagnostic: bypass Vulkan_wDx12::GetInstanceProcAddr.`n", 1)
         $text = [regex]::Replace($text, $devicePattern, "`n    // Warframe diagnostic: bypass Vulkan_wDx12::GetDeviceProcAddr.`n", 1)
 
         $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
         [System.IO.File]::WriteAllText($path, $text, $utf8NoBom)
-
         Write-Host "Vulkan w/DX12 procaddr diagnostic patch applied."
 
     - name: Make D3D12 device Release hook transparent
@@ -66,17 +57,13 @@ jobs:
 
         $releasePattern = '(?ms)VALIDATE_HOOK\(hkD3D12DeviceRelease, PFN_Release\)\r?\nstatic ULONG hkD3D12DeviceRelease\(IUnknown\* device\)\r?\n\{.*?\r?\n\}\r?\n\r?\n(?=VALIDATE_HOOK\(hkCheckFeatureSupport, PFN_CheckFeatureSupport\))'
         $matches = [regex]::Matches($text, $releasePattern).Count
-
-        if ($matches -ne 1) {
-          throw "Expected exactly one hkD3D12DeviceRelease function, found $matches"
-        }
+        if ($matches -ne 1) { throw "Expected exactly one hkD3D12DeviceRelease function, found $matches" }
 
         $replacement = @(
           'VALIDATE_HOOK(hkD3D12DeviceRelease, PFN_Release)'
           'static ULONG hkD3D12DeviceRelease(IUnknown* device)'
           '{'
-          '    // Warframe diagnostic: preserve the detour but remove the extra AddRef/Release'
-          '    // probe and currentD3D12Device state mutation.'
+          '    // Warframe diagnostic: transparent Release forwarder.'
           '    return o_D3D12DeviceRelease(device);'
           '}'
           ''
@@ -85,9 +72,31 @@ jobs:
         $text = [regex]::Replace($text, $releasePattern, $replacement, 1)
         $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
         [System.IO.File]::WriteAllText($path, $text, $utf8NoBom)
-
         Write-Host "Transparent D3D12 Release diagnostic patch applied."
-        Select-String -Path $path -Pattern 'Warframe diagnostic: preserve the detour'
+
+    - name: Hard bypass D3D12 HookToDevice
+      shell: powershell
+      run: |
+        $path = ".\OptiScaler\hooks\D3D12_Hooks.cpp"
+        $text = Get-Content -Path $path -Raw
+
+        $pattern = '(?m)^static void HookToDevice\(ID3D12Device\* InDevice\)\r?\n\{'
+        $matches = [regex]::Matches($text, $pattern).Count
+        if ($matches -ne 1) { throw "Expected exactly one HookToDevice definition, found $matches" }
+
+        $replacement = @(
+          'static void HookToDevice(ID3D12Device* InDevice)'
+          '{'
+          '    LOG_WARN("Warframe diagnostic: HookToDevice hard bypassed for device {:X}", (UINT64) InDevice);'
+          '    return;'
+        ) -join "`n"
+
+        $text = [regex]::Replace($text, $pattern, $replacement, 1)
+        $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+        [System.IO.File]::WriteAllText($path, $text, $utf8NoBom)
+
+        Write-Host "HookToDevice hard bypass applied."
+        Select-String -Path $path -Pattern 'HookToDevice hard bypassed'
 
     - name: Extract Version
       id: get_version
@@ -95,23 +104,13 @@ jobs:
       shell: powershell
       run: |
         $resourceFile = ".\OptiScaler\resource.h"
-        if (-Not (Test-Path $resourceFile)) {
-            Write-Error "File not found: $resourceFile"
-            exit 1
-        }
+        if (-Not (Test-Path $resourceFile)) { throw "File not found: $resourceFile" }
 
         function Get-Version-Component {
-            param (
-                [string]$pattern,
-                [string]$replacement
-            )
+            param ([string]$pattern, [string]$replacement)
             $line = Get-Content $resourceFile | Select-String -Pattern $pattern | Select-Object -First 1
-            if ($line) {
-                return ($line.Line -replace $replacement).Trim()
-            } else {
-                Write-Error "Pattern not found: $pattern"
-                exit 1
-            }
+            if (-Not $line) { throw "Pattern not found: $pattern" }
+            return ($line.Line -replace $replacement).Trim()
         }
 
         $majorVersion = Get-Version-Component 'VER_MAJOR_VERSION' '#define VER_MAJOR_VERSION\s+'
@@ -120,18 +119,11 @@ jobs:
         $buildVersion = Get-Version-Component 'VER_BUILD_NUMBER' '#define VER_BUILD_NUMBER\s+'
         $version = "v$majorVersion.$minorVersion.$hotfixVersion-pre$buildVersion"
         $date = Get-Date -Format "yyyyMMdd"
-        $outputFileName = "OptiScaler_${version}_${date}_warframe-transparent-d3d12-release"
+        $outputFileName = "OptiScaler_${version}_${date}_warframe-no-hooktodevice"
 
         Write-Output "Generated Filename: $outputFileName"
         "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
         "filename=$outputFileName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-
-      continue-on-error: false
-
-    - name: Debug Outputs
-      run: |
-        echo "Version: ${{ steps.get_version.outputs.version }}"
-        echo "Filename: ${{ steps.get_version.outputs.filename }}"
 
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v2
@@ -144,8 +136,6 @@ jobs:
       run: |
         $zipName = "${{ steps.get_version.outputs.filename }}.7z"
         7z a -r ${{ github.workspace }}\$zipName ${{ github.workspace }}\x64\Release\a\*.*
-
-      continue-on-error: false
 
     - uses: actions/upload-artifact@v7.0.0
       with:
