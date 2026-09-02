@@ -56,7 +56,8 @@ jobs:
         $text = [regex]::Replace($text, $instancePattern, "`n    // Warframe diagnostic: bypass Vulkan_wDx12::GetInstanceProcAddr.`n", 1)
         $text = [regex]::Replace($text, $devicePattern, "`n    // Warframe diagnostic: bypass Vulkan_wDx12::GetDeviceProcAddr.`n", 1)
 
-        Set-Content -Path $path -Value $text -NoNewline -Encoding utf8NoBOM
+        $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+        [System.IO.File]::WriteAllText($path, $text, $utf8NoBom)
 
         Write-Host "Diagnostic patch applied. Remaining Vulkan_wDx12 references in Vulkan_Spoofing.cpp:"
         Select-String -Path $path -Pattern 'Vulkan_wDx12::'
