@@ -71,16 +71,16 @@ jobs:
           throw "Expected exactly one hkD3D12DeviceRelease function, found $matches"
         }
 
-        $replacement = @'
-VALIDATE_HOOK(hkD3D12DeviceRelease, PFN_Release)
-static ULONG hkD3D12DeviceRelease(IUnknown* device)
-{
-    // Warframe diagnostic: preserve the detour but remove the extra AddRef/Release
-    // probe and currentD3D12Device state mutation.
-    return o_D3D12DeviceRelease(device);
-}
-
-'@
+        $replacement = @(
+          'VALIDATE_HOOK(hkD3D12DeviceRelease, PFN_Release)'
+          'static ULONG hkD3D12DeviceRelease(IUnknown* device)'
+          '{'
+          '    // Warframe diagnostic: preserve the detour but remove the extra AddRef/Release'
+          '    // probe and currentD3D12Device state mutation.'
+          '    return o_D3D12DeviceRelease(device);'
+          '}'
+          ''
+        ) -join "`n"
 
         $text = [regex]::Replace($text, $releasePattern, $replacement, 1)
         $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
