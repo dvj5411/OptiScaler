@@ -33,6 +33,33 @@ jobs:
     - uses: actions/checkout@v6
       with:
         submodules: 'true'
+
+    - name: Disable Vulkan w/DX12 procaddr hooks for Warframe diagnostic
+      shell: powershell
+      run: |
+        $path = ".\OptiScaler\spoofing\Vulkan_Spoofing.cpp"
+        $text = Get-Content -Path $path -Raw
+
+        $instancePattern = '(?ms)^\s*auto result = Vulkan_wDx12::GetInstanceProcAddr\(orgFunc, pName\);\r?\n\s*if \(result != VK_NULL_HANDLE\)\r?\n\s*return result;\r?\n'
+        $devicePattern = '(?ms)^\s*auto result = Vulkan_wDx12::GetDeviceProcAddr\(orgFunc, pName\);\r?\n\s*if \(result != VK_NULL_HANDLE\)\r?\n\s*return result;\r?\n'
+
+        $instanceMatches = [regex]::Matches($text, $instancePattern).Count
+        $deviceMatches = [regex]::Matches($text, $devicePattern).Count
+
+        if ($instanceMatches -ne 1) {
+          throw "Expected exactly one Vulkan_wDx12::GetInstanceProcAddr block, found $instanceMatches"
+        }
+        if ($deviceMatches -ne 1) {
+          throw "Expected exactly one Vulkan_wDx12::GetDeviceProcAddr block, found $deviceMatches"
+        }
+
+        $text = [regex]::Replace($text, $instancePattern, "`n    // Warframe diagnostic: bypass Vulkan_wDx12::GetInstanceProcAddr.`n", 1)
+        $text = [regex]::Replace($text, $devicePattern, "`n    // Warframe diagnostic: bypass Vulkan_wDx12::GetDeviceProcAddr.`n", 1)
+
+        Set-Content -Path $path -Value $text -NoNewline -Encoding utf8NoBOM
+
+        Write-Host "Diagnostic patch applied. Remaining Vulkan_wDx12 references in Vulkan_Spoofing.cpp:"
+        Select-String -Path $path -Pattern 'Vulkan_wDx12::'
         
     - name: Extract Version
       id: get_version
@@ -74,8 +101,8 @@ jobs:
         # Get the current date in a specific format (e.g., YYYYMMDD)
         $date = Get-Date -Format "yyyyMMdd"
         
-        # Construct the output filename with version and date
-        $outputFileName = "OptiScaler_${version}_${date}"
+        # Construct the output filename
+        $outputFileName = "OptiScaler_${version}_${date}_warframe-no-vkwdx12-procaddr"
         
         # Output the generated filename
         Write-Output "Generated Filename: $outputFileName"
