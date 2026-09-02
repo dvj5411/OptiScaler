@@ -17,8 +17,6 @@ env:
   SOLUTION_FILE_PATH: .
 
   # Configuration type to build.
-  # You can convert this to a build matrix if you need coverage of multiple configuration types.
-  # https://docs.github.com/actions/learn-github-actions/managing-complex-workflows#using-a-build-matrix
   BUILD_CONFIGURATION: Release
 
 permissions:
@@ -59,28 +57,55 @@ jobs:
         $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
         [System.IO.File]::WriteAllText($path, $text, $utf8NoBom)
 
-        Write-Host "Diagnostic patch applied. Remaining Vulkan_wDx12 references in Vulkan_Spoofing.cpp:"
-        Select-String -Path $path -Pattern 'Vulkan_wDx12::'
-        
+        Write-Host "Vulkan w/DX12 procaddr diagnostic patch applied."
+
+    - name: Make D3D12 device Release hook transparent
+      shell: powershell
+      run: |
+        $path = ".\OptiScaler\hooks\D3D12_Hooks.cpp"
+        $text = Get-Content -Path $path -Raw
+
+        $releasePattern = '(?ms)VALIDATE_HOOK\(hkD3D12DeviceRelease, PFN_Release\)\r?\nstatic ULONG hkD3D12DeviceRelease\(IUnknown\* device\)\r?\n\{.*?\r?\n\}\r?\n\r?\n(?=VALIDATE_HOOK\(hkCheckFeatureSupport, PFN_CheckFeatureSupport\))'
+        $matches = [regex]::Matches($text, $releasePattern).Count
+
+        if ($matches -ne 1) {
+          throw "Expected exactly one hkD3D12DeviceRelease function, found $matches"
+        }
+
+        $replacement = @'
+VALIDATE_HOOK(hkD3D12DeviceRelease, PFN_Release)
+static ULONG hkD3D12DeviceRelease(IUnknown* device)
+{
+    // Warframe diagnostic: preserve the detour but remove the extra AddRef/Release
+    // probe and currentD3D12Device state mutation.
+    return o_D3D12DeviceRelease(device);
+}
+
+'@
+
+        $text = [regex]::Replace($text, $releasePattern, $replacement, 1)
+        $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+        [System.IO.File]::WriteAllText($path, $text, $utf8NoBom)
+
+        Write-Host "Transparent D3D12 Release diagnostic patch applied."
+        Select-String -Path $path -Pattern 'Warframe diagnostic: preserve the detour'
+
     - name: Extract Version
       id: get_version
       working-directory: ${{ github.workspace }}
       shell: powershell
       run: |
-        # Ensure the file exists before proceeding
         $resourceFile = ".\OptiScaler\resource.h"
         if (-Not (Test-Path $resourceFile)) {
             Write-Error "File not found: $resourceFile"
             exit 1
         }
-        
-        # Helper function to extract the first matching line for a version component
+
         function Get-Version-Component {
             param (
                 [string]$pattern,
                 [string]$replacement
             )
-            # Use Select-String and take only the first match
             $line = Get-Content $resourceFile | Select-String -Pattern $pattern | Select-Object -First 1
             if ($line) {
                 return ($line.Line -replace $replacement).Trim()
@@ -89,52 +114,40 @@ jobs:
                 exit 1
             }
         }
-        
-        # Extract version components (only the first match for each pattern)
+
         $majorVersion = Get-Version-Component 'VER_MAJOR_VERSION' '#define VER_MAJOR_VERSION\s+'
         $minorVersion = Get-Version-Component 'VER_MINOR_VERSION' '#define VER_MINOR_VERSION\s+'
         $hotfixVersion = Get-Version-Component 'VER_HOTFIX_VERSION' '#define VER_HOTFIX_VERSION\s+'
         $buildVersion = Get-Version-Component 'VER_BUILD_NUMBER' '#define VER_BUILD_NUMBER\s+'
-        
-        # Merge into a single version string
         $version = "v$majorVersion.$minorVersion.$hotfixVersion-pre$buildVersion"
-        
-        # Get the current date in a specific format (e.g., YYYYMMDD)
         $date = Get-Date -Format "yyyyMMdd"
-        
-        # Construct the output filename
-        $outputFileName = "OptiScaler_${version}_${date}_warframe-no-vkwdx12-procaddr"
-        
-        # Output the generated filename
+        $outputFileName = "OptiScaler_${version}_${date}_warframe-transparent-d3d12-release"
+
         Write-Output "Generated Filename: $outputFileName"
-        
-        # Write outputs to GITHUB_OUTPUT
         "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
         "filename=$outputFileName" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-        
+
       continue-on-error: false
-      
+
     - name: Debug Outputs
       run: |
         echo "Version: ${{ steps.get_version.outputs.version }}"
         echo "Filename: ${{ steps.get_version.outputs.filename }}"
-        
+
     - name: Add MSBuild to PATH
       uses: microsoft/setup-msbuild@v2
 
     - name: Build
       working-directory: ${{env.GITHUB_WORKSPACE}}
-      # Add additional options to the MSBuild command line here (like platform or verbosity level).
-      # See https://docs.microsoft.com/visualstudio/msbuild/msbuild-command-line-reference
       run: msbuild /m /p:Configuration=${{env.BUILD_CONFIGURATION}} ${{env.SOLUTION_FILE_PATH}} /verbosity:minimal
-      
-    - name: Compress the artifact 
+
+    - name: Compress the artifact
       run: |
         $zipName = "${{ steps.get_version.outputs.filename }}.7z"
         7z a -r ${{ github.workspace }}\$zipName ${{ github.workspace }}\x64\Release\a\*.*
 
       continue-on-error: false
-        
+
     - uses: actions/upload-artifact@v7.0.0
       with:
         name: '${{ steps.get_version.outputs.filename }}'
