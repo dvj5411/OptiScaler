@@ -1479,8 +1479,7 @@ class FfxApiProxy
         {
             // Prefer the SDK 2.x split loader/provider names, then fall back to
             // the legacy monolithic Vulkan runtime.
-            std::vector<std::wstring> dllNames = { L"amd_fidelityfx_loader_vk.dll",
-                                                   L"amd_fidelityfx_upscaler_vk.dll",
+            std::vector<std::wstring> dllNames = { L"amd_fidelityfx_loader_vk.dll", L"amd_fidelityfx_upscaler_vk.dll",
                                                    L"amd_fidelityfx_vk.dll" };
 
             auto optiPath = Config::Instance()->MainDllPath.value();
