@@ -126,9 +126,9 @@ FFXFeatureVk::FFXFeatureVk(unsigned int InHandleId, NVSDK_NGX_Parameter* InParam
     _moduleLoaded = FfxApiProxy::InitFfxVk();
 
     if (_moduleLoaded)
-        LOG_INFO("amd_fidelityfx_vk.dll methods loaded!");
+        LOG_INFO("Vulkan FFX methods loaded!");
     else
-        LOG_ERROR("Can't load amd_fidelityfx_vk.dll methods!");
+        LOG_ERROR("Can't load Vulkan FFX methods!");
 }
 
 bool FFXFeatureVk::InitFFX(const NVSDK_NGX_Parameter* InParameters)

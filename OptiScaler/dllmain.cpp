@@ -1102,7 +1102,7 @@ static void CheckWorkingMode()
     ffxVkModule = GetDllNameWModule(&ffxVkNamesW);
     if (ffxVkModule != nullptr)
     {
-        LOG_DEBUG("amd_fidelityfx_vk.dll already in memory");
+        LOG_DEBUG("Vulkan FFX module already in memory");
         FfxApiProxy::InitFfxVk(ffxVkModule);
     }
 

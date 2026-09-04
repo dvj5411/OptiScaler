@@ -1477,8 +1477,11 @@ class FfxApiProxy
 
         if (main_vk.dll == nullptr)
         {
-            // Try new api first
-            std::vector<std::wstring> dllNames = { L"amd_fidelityfx_vk.dll" };
+            // Prefer the SDK 2.x split loader/provider names, then fall back to
+            // the legacy monolithic Vulkan runtime.
+            std::vector<std::wstring> dllNames = { L"amd_fidelityfx_loader_vk.dll",
+                                                   L"amd_fidelityfx_upscaler_vk.dll",
+                                                   L"amd_fidelityfx_vk.dll" };
 
             auto optiPath = Config::Instance()->MainDllPath.value();
 
@@ -1561,14 +1564,24 @@ class FfxApiProxy
             }
         }
 
-        bool loadResult = main_vk.CreateContext != nullptr;
+        const bool loadResult = main_vk.Configure != nullptr && main_vk.CreateContext != nullptr &&
+                                main_vk.DestroyContext != nullptr && main_vk.Dispatch != nullptr &&
+                                main_vk.Query != nullptr;
 
         LOG_INFO("LoadResult: {}", loadResult);
 
         if (loadResult)
             VersionVk();
         else
-            main_vk.dll = nullptr;
+        {
+            if (main_vk.dll != nullptr)
+            {
+                LOG_ERROR("Vulkan FFX module is missing one or more required exports: ffxConfigure, "
+                          "ffxCreateContext, ffxDestroyContext, ffxDispatch, ffxQuery");
+            }
+
+            main_vk = {};
+        }
 
         return loadResult;
     }

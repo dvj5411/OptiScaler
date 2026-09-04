@@ -127,11 +127,15 @@ Currently **OptiScaler** can be used with DirectX 11, DirectX 12 and Vulkan, but
 > </details>
 
 #### For Vulkan
-- FSR 4.X (via FSR 3.X/4 w/Dx12 interop, _officially RDNA4 and RDNA3 dGPUs only_)
+- FSR 4.X (native with an API-compatible Vulkan FFX provider, or via FSR 3.X/4 w/Dx12 interop; _officially RDNA4 and RDNA3 dGPUs only_)
 - FSR2 2.1.2 (Default), 2.2.1
 - FSR3 3.1 (and FSR2 2.3.2)
 - DLSS
 - XeSS 2.x
+
+Native Vulkan FFX providers are discovered as `amd_fidelityfx_loader_vk.dll`,
+`amd_fidelityfx_upscaler_vk.dll`, or the legacy `amd_fidelityfx_vk.dll`, in
+that order. A provider at another path can be selected with `FfxVkPath`.
 
 #### OptiFG + HUDfix (experimental HUD ghosting fix) 
 **OptiFG** was added with **v0.7** and is **only supported in DX12**. 
@@ -190,4 +194,3 @@ This project uses [FreeType](https://gitlab.freedesktop.org/freetype/freetype) l
   </tr>
  </tbody>
 </table>
-
