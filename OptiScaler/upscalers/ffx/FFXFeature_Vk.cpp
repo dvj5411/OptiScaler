@@ -109,6 +109,24 @@ static inline FfxApiResourceDescription ffxApiGetImageResourceDescriptionVKLocal
     if ((vkResource->Resource.ImageViewInfo.SubresourceRange.aspectMask & VK_IMAGE_ASPECT_STENCIL_BIT) > 0)
         resourceDescription.usage |= FFX_API_RESOURCE_USAGE_STENCILTARGET;
 
+    // Some NGX inputs report COLOR aspect even for a depth/stencil VkFormat.
+    // Preserve the actual format class before the FFX enum collapses it to R32.
+    switch (vkResource->Resource.ImageViewInfo.Format)
+    {
+    case VK_FORMAT_D16_UNORM_S8_UINT:
+    case VK_FORMAT_D24_UNORM_S8_UINT:
+    case VK_FORMAT_D32_SFLOAT_S8_UINT:
+        resourceDescription.usage |= FFX_API_RESOURCE_USAGE_STENCILTARGET;
+        [[fallthrough]];
+    case VK_FORMAT_D16_UNORM:
+    case VK_FORMAT_X8_D24_UNORM_PACK32:
+    case VK_FORMAT_D32_SFLOAT:
+        resourceDescription.usage |= FFX_API_RESOURCE_USAGE_DEPTHTARGET;
+        break;
+    default:
+        break;
+    }
+
     resourceDescription.type = FFX_API_RESOURCE_TYPE_TEXTURE2D;
     resourceDescription.width = vkResource->Resource.ImageViewInfo.Width;
     resourceDescription.height = vkResource->Resource.ImageViewInfo.Height;

@@ -183,7 +183,8 @@ static VkResult hkvkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevice
     // still experimental. The copied chain lives through the actual call.
     std::unique_ptr<fsr4vk::DeviceFeatures> fsr4Features;
     char fsr4OptIn[8] {};
-    if (GetEnvironmentVariableA("FSR4_VK_ENABLE_DEVICE_FEATURES", fsr4OptIn, sizeof(fsr4OptIn)) == 1 &&
+    if (!State::Instance().creatingD3DDevice &&
+        GetEnvironmentVariableA("FSR4_VK_ENABLE_DEVICE_FEATURES", fsr4OptIn, sizeof(fsr4OptIn)) == 1 &&
         fsr4OptIn[0] == '1')
     {
         try
