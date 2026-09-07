@@ -1,5 +1,22 @@
 # Native FSR 4 Vulkan provider contract
 
+## Experimental device opt-in
+
+`FSR4_VK_ENABLE_DEVICE_FEATURES=1` opts the native Vulkan device-creation hook
+into the fixed Quality provider's feature contract. Leave it unset for normal
+gameplay while NMS input support is being implemented. The opt-in queries real
+capabilities, adds the required extension names without duplicates, and enables
+the required core and extension feature bits in an owned copy of the application's
+chain. Unknown chain structure types, unsupported capabilities, and cyclic or
+duplicate structures are rejected with a diagnostic; the game-owned memory is
+never changed. The copied chain must remain alive through device creation.
+
+This currently targets Vulkan 1.3 applications. It does not make inverted depth,
+auto-exposure, or other shader permutations usable by itself. Standalone W6400
+device-creation tests pass with validation enabled for aggregate and separate
+feature chains. Full OptiScaler build and in-game opt-in validation are separate
+gates; do not equate the standalone test with game compatibility.
+
 OptiScaler can use an FFX API upscaler provider directly from a Vulkan game.
 It searches the configured OptiScaler library directory in this order:
 

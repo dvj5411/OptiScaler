@@ -1,6 +1,7 @@
 #include "pch.h"
 
 #include "Vulkan_Hooks.h"
+#include "Fsr4DeviceFeatures.h"
 
 #include <Util.h>
 #include <Config.h>
@@ -178,7 +179,27 @@ static VkResult hkvkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevice
 
     VulkanSpoofing::hkvkCreateDevice(physicalDevice, &localCreteInfo, pAllocator, pDevice);
 
-    auto result = o_vkCreateDevice(physicalDevice, &localCreteInfo, pAllocator, pDevice);
+    // Disabled by default while the provider's game-input permutations are
+    // still experimental. The copied chain lives through the actual call.
+    std::unique_ptr<fsr4vk::DeviceFeatures> fsr4Features;
+    char fsr4OptIn[8] {};
+    if (GetEnvironmentVariableA("FSR4_VK_ENABLE_DEVICE_FEATURES", fsr4OptIn, sizeof(fsr4OptIn)) == 1 &&
+        fsr4OptIn[0] == '1')
+    {
+        try
+        {
+            fsr4Features = std::make_unique<fsr4vk::DeviceFeatures>(
+                physicalDevice, localCreteInfo, o_vkGetPhysicalDeviceFeatures2, vkEnumerateDeviceExtensionProperties);
+            LOG_INFO("FSR4 Vulkan device feature contract enabled");
+        }
+        catch (const std::exception& e)
+        {
+            LOG_ERROR("FSR4 Vulkan feature opt-in rejected: {}", e.what());
+            return VK_ERROR_FEATURE_NOT_PRESENT;
+        }
+    }
+    auto result = o_vkCreateDevice(physicalDevice, fsr4Features ? fsr4Features->get() : &localCreteInfo,
+                                  pAllocator, pDevice);
 
     if (result == VK_SUCCESS && Config::Instance()->OverlayMenu.value_or_default())
     {
