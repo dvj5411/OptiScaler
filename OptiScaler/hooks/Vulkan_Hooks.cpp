@@ -198,8 +198,8 @@ static VkResult hkvkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevice
             return VK_ERROR_FEATURE_NOT_PRESENT;
         }
     }
-    auto result = o_vkCreateDevice(physicalDevice, fsr4Features ? fsr4Features->get() : &localCreteInfo,
-                                  pAllocator, pDevice);
+    auto result =
+        o_vkCreateDevice(physicalDevice, fsr4Features ? fsr4Features->get() : &localCreteInfo, pAllocator, pDevice);
 
     if (result == VK_SUCCESS && Config::Instance()->OverlayMenu.value_or_default())
     {

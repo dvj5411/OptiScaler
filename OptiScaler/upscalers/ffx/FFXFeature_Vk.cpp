@@ -290,7 +290,7 @@ bool FFXFeatureVk::EvaluateInternal(VkCommandBuffer InCmdBuffer, NVSDK_NGX_Param
         return false;
     }
 
-    NVSDK_NGX_Resource_VK* paramDepth;
+    NVSDK_NGX_Resource_VK* paramDepth = nullptr;
     InParameters->Get(NVSDK_NGX_Parameter_Depth, (void**) &paramDepth);
 
     if (paramDepth)
@@ -307,6 +307,26 @@ bool FFXFeatureVk::EvaluateInternal(VkCommandBuffer InCmdBuffer, NVSDK_NGX_Param
 
         if (LowResMV())
             return false;
+    }
+
+    if (!_resourceContractLogged)
+    {
+        const auto logResource = [](const char* name, const NVSDK_NGX_Resource_VK* resource)
+        {
+            if (!resource)
+                return;
+            const auto& image = resource->Resource.ImageViewInfo;
+            LOG_INFO("Vulkan resource contract {}: {}x{} format={} aspect={} baseMip={} mipCount={} "
+                     "baseLayer={} layerCount={} readWrite={}",
+                     name, image.Width, image.Height, static_cast<int>(image.Format), image.SubresourceRange.aspectMask,
+                     image.SubresourceRange.baseMipLevel, image.SubresourceRange.levelCount,
+                     image.SubresourceRange.baseArrayLayer, image.SubresourceRange.layerCount, resource->ReadWrite);
+        };
+        logResource("color", paramColor);
+        logResource("depth", paramDepth);
+        logResource("motion", paramVelocity);
+        logResource("output", paramOutput);
+        _resourceContractLogged = true;
     }
 
     NVSDK_NGX_Resource_VK* paramExp = nullptr;
