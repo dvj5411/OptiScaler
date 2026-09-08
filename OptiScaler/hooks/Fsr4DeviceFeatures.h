@@ -23,6 +23,61 @@ struct VkPhysicalDeviceShaderMixedFloatDotProductFeaturesVALVE
 };
 #endif
 
+// Compatibility with device-feature structures newer than the Vulkan 1.4.310
+// headers bundled with OptiScaler. These definitions mirror the Khronos ABI so
+// application-owned pNext nodes can be copied without dropping their payload.
+#ifndef VK_KHR_unified_image_layouts
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_UNIFIED_IMAGE_LAYOUTS_FEATURES_KHR static_cast<VkStructureType>(1000527000)
+struct VkPhysicalDeviceUnifiedImageLayoutsFeaturesKHR
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 unifiedImageLayouts;
+    VkBool32 unifiedImageLayoutsVideo;
+};
+#endif
+
+#ifndef VK_KHR_shader_untyped_pointers
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_UNTYPED_POINTERS_FEATURES_KHR static_cast<VkStructureType>(1000387000)
+struct VkPhysicalDeviceShaderUntypedPointersFeaturesKHR
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 shaderUntypedPointers;
+};
+#endif
+
+#ifndef VK_KHR_maintenance9
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_9_FEATURES_KHR static_cast<VkStructureType>(1000584000)
+struct VkPhysicalDeviceMaintenance9FeaturesKHR
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 maintenance9;
+};
+#endif
+
+#ifndef VK_KHR_maintenance10
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_10_FEATURES_KHR static_cast<VkStructureType>(1000630000)
+struct VkPhysicalDeviceMaintenance10FeaturesKHR
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 maintenance10;
+};
+#endif
+
+#ifndef VK_EXT_descriptor_heap
+#define VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_HEAP_FEATURES_EXT static_cast<VkStructureType>(1000135009)
+struct VkPhysicalDeviceDescriptorHeapFeaturesEXT
+{
+    VkStructureType sType;
+    void* pNext;
+    VkBool32 descriptorHeap;
+    VkBool32 descriptorHeapCaptureReplay;
+};
+#endif
+
 namespace fsr4vk
 {
 // Owns copies: never modifies the application's const pNext chain. Unknown
@@ -53,8 +108,59 @@ class DeviceFeatures
             FSR4_COPY(VkPhysicalDeviceVulkan12Features, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES);
             FSR4_COPY(VkPhysicalDeviceVulkan13Features, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES);
             FSR4_COPY(VkPhysicalDeviceVulkan14Features, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_4_FEATURES);
+            FSR4_COPY(VkPhysicalDeviceUnifiedImageLayoutsFeaturesKHR,
+                      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_UNIFIED_IMAGE_LAYOUTS_FEATURES_KHR);
+            FSR4_COPY(VkPhysicalDeviceSwapchainMaintenance1FeaturesEXT,
+                      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_EXT);
+            FSR4_COPY(VkPhysicalDeviceShaderUntypedPointersFeaturesKHR,
+                      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_UNTYPED_POINTERS_FEATURES_KHR);
+            FSR4_COPY(VkPhysicalDeviceShaderSubgroupUniformControlFlowFeaturesKHR,
+                      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_SUBGROUP_UNIFORM_CONTROL_FLOW_FEATURES_KHR);
             FSR4_COPY(VkPhysicalDeviceShaderFloatControls2FeaturesKHR,
                       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT_CONTROLS_2_FEATURES_KHR);
+            FSR4_COPY(VkPhysicalDevicePresentWaitFeaturesKHR, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_WAIT_FEATURES_KHR);
+            FSR4_COPY(VkPhysicalDevicePresentIdFeaturesKHR, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PRESENT_ID_FEATURES_KHR);
+            FSR4_COPY(VkPhysicalDeviceMaintenance10FeaturesKHR,
+                      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_10_FEATURES_KHR);
+            FSR4_COPY(VkPhysicalDeviceMaintenance9FeaturesKHR,
+                      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_9_FEATURES_KHR);
+            FSR4_COPY(VkPhysicalDeviceMaintenance8FeaturesKHR,
+                      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_8_FEATURES_KHR);
+            FSR4_COPY(VkPhysicalDeviceMaintenance6Features, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_6_FEATURES);
+            FSR4_COPY(VkPhysicalDeviceMaintenance5Features, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_5_FEATURES);
+            FSR4_COPY(VkPhysicalDeviceDynamicRenderingLocalReadFeatures,
+                      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_LOCAL_READ_FEATURES);
+            FSR4_COPY(VkPhysicalDeviceVertexAttributeDivisorFeatures,
+                      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VERTEX_ATTRIBUTE_DIVISOR_FEATURES);
+            FSR4_COPY(VkPhysicalDeviceTransformFeedbackFeaturesEXT,
+                      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TRANSFORM_FEEDBACK_FEATURES_EXT);
+            FSR4_COPY(VkPhysicalDeviceShaderModuleIdentifierFeaturesEXT,
+                      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_MODULE_IDENTIFIER_FEATURES_EXT);
+            FSR4_COPY(VkPhysicalDeviceRobustness2FeaturesEXT,
+                      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_EXT);
+            FSR4_COPY(VkPhysicalDeviceNonSeamlessCubeMapFeaturesEXT,
+                      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_NON_SEAMLESS_CUBE_MAP_FEATURES_EXT);
+            FSR4_COPY(VkPhysicalDeviceMultiDrawFeaturesEXT, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MULTI_DRAW_FEATURES_EXT);
+            FSR4_COPY(VkPhysicalDeviceLineRasterizationFeatures,
+                      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_LINE_RASTERIZATION_FEATURES);
+            FSR4_COPY(VkPhysicalDeviceGraphicsPipelineLibraryFeaturesEXT,
+                      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_GRAPHICS_PIPELINE_LIBRARY_FEATURES_EXT);
+            FSR4_COPY(VkPhysicalDeviceFragmentShaderInterlockFeaturesEXT,
+                      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADER_INTERLOCK_FEATURES_EXT);
+            FSR4_COPY(VkPhysicalDeviceExtendedDynamicState3FeaturesEXT,
+                      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_EXTENDED_DYNAMIC_STATE_3_FEATURES_EXT);
+            FSR4_COPY(VkPhysicalDeviceDynamicRenderingUnusedAttachmentsFeaturesEXT,
+                      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_FEATURES_EXT);
+            FSR4_COPY(VkPhysicalDeviceDescriptorHeapFeaturesEXT,
+                      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_HEAP_FEATURES_EXT);
+            FSR4_COPY(VkPhysicalDeviceDepthBiasControlFeaturesEXT,
+                      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DEPTH_BIAS_CONTROL_FEATURES_EXT);
+            FSR4_COPY(VkPhysicalDeviceCustomBorderColorFeaturesEXT,
+                      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_CUSTOM_BORDER_COLOR_FEATURES_EXT);
+            FSR4_COPY(VkPhysicalDeviceBorderColorSwizzleFeaturesEXT,
+                      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BORDER_COLOR_SWIZZLE_FEATURES_EXT);
+            FSR4_COPY(VkPhysicalDeviceAttachmentFeedbackLoopLayoutFeaturesEXT,
+                      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ATTACHMENT_FEEDBACK_LOOP_LAYOUT_FEATURES_EXT);
             FSR4_COPY(VkPhysicalDeviceShaderFloat16Int8Features,
                       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT16_INT8_FEATURES);
             FSR4_COPY(VkPhysicalDevice8BitStorageFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES);
@@ -81,8 +187,17 @@ class DeviceFeatures
                       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DEPTH_CLIP_ENABLE_FEATURES_EXT);
             FSR4_COPY(VkPhysicalDeviceCoherentMemoryFeaturesAMD,
                       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COHERENT_MEMORY_FEATURES_AMD);
+            FSR4_COPY(VkDeviceMemoryOverallocationCreateInfoAMD,
+                      VK_STRUCTURE_TYPE_DEVICE_MEMORY_OVERALLOCATION_CREATE_INFO_AMD);
             FSR4_COPY(VkPhysicalDevicePipelineExecutablePropertiesFeaturesKHR,
                       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PIPELINE_EXECUTABLE_PROPERTIES_FEATURES_KHR);
+            FSR4_COPY(VkPhysicalDeviceRayTracingPipelineFeaturesKHR,
+                      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR);
+            FSR4_COPY(VkPhysicalDeviceAccelerationStructureFeaturesKHR,
+                      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR);
+            FSR4_COPY(VkPhysicalDeviceRayQueryFeaturesKHR, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_RAY_QUERY_FEATURES_KHR);
+            FSR4_COPY(VkPhysicalDeviceFragmentShadingRateFeaturesKHR,
+                      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADING_RATE_FEATURES_KHR);
             FSR4_COPY(VkPhysicalDeviceMutableDescriptorTypeFeaturesEXT,
                       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MUTABLE_DESCRIPTOR_TYPE_FEATURES_EXT);
             FSR4_COPY(VkPhysicalDeviceDescriptorBufferFeaturesEXT,
