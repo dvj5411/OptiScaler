@@ -62,6 +62,8 @@ class DeviceFeatures
                       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES);
             FSR4_COPY(VkPhysicalDeviceBufferDeviceAddressFeatures,
                       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES);
+            FSR4_COPY(VkPhysicalDeviceBufferDeviceAddressFeaturesEXT,
+                      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES_EXT);
             FSR4_COPY(VkPhysicalDeviceShaderIntegerDotProductFeatures,
                       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_INTEGER_DOT_PRODUCT_FEATURES);
             FSR4_COPY(VkPhysicalDeviceSynchronization2Features,
