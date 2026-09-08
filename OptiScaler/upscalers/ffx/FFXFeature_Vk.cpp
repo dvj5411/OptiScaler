@@ -10,8 +10,7 @@ using namespace OptiMath;
 
 namespace
 {
-constexpr uint64_t kFsr4VulkanVersionId =
-    (0xF5A5CA1Eull << 32) | ((4ull << 22) | (0ull << 12) | 2ull);
+constexpr uint64_t kFsr4VulkanVersionId = (0xF5A5CA1Eull << 32) | ((4ull << 22) | (0ull << 12) | 2ull);
 constexpr ffxStructType_t kFsr4VulkanApiVersionDescType = 0x46535234564b4150ull;
 
 struct Fsr4VulkanApiVersionDesc
@@ -212,8 +211,8 @@ bool FFXFeatureVk::InitFFX(const NVSDK_NGX_Parameter* InParameters)
             apiVersionDesc.header.pNext = &ov.header;
             apiVersionDesc.apiVersion = State::Instance().vulkanApiVersion;
             backendDesc.header.pNext = &apiVersionDesc.header;
-            LOG_INFO("FSR4 Vulkan command path selected for API {}.{}",
-                     VK_API_VERSION_MAJOR(apiVersionDesc.apiVersion), VK_API_VERSION_MINOR(apiVersionDesc.apiVersion));
+            LOG_INFO("FSR4 Vulkan command path selected for API {}.{}", VK_API_VERSION_MAJOR(apiVersionDesc.apiVersion),
+                     VK_API_VERSION_MINOR(apiVersionDesc.apiVersion));
         }
         else
             backendDesc.header.pNext = &ov.header;
