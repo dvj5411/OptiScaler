@@ -106,18 +106,21 @@ class DeviceFeatures
     }
 
   public:
-    DeviceFeatures(VkPhysicalDevice physical, const VkDeviceCreateInfo& source, PFN_vkGetPhysicalDeviceFeatures2 query,
-                   PFN_vkEnumerateDeviceExtensionProperties enumerate)
+    DeviceFeatures(VkPhysicalDevice physical, const VkDeviceCreateInfo& source, uint32_t apiVersion,
+                   PFN_vkGetPhysicalDeviceFeatures2 query, PFN_vkEnumerateDeviceExtensionProperties enumerate)
         : info(source)
     {
         if (!query || !enumerate)
             throw std::runtime_error("missing Vulkan feature-query functions");
+        if (VK_API_VERSION_MAJOR(apiVersion) < 1 ||
+            (VK_API_VERSION_MAJOR(apiVersion) == 1 && VK_API_VERSION_MINOR(apiVersion) < 1))
+            throw std::runtime_error("FSR4 requires Vulkan 1.1 or newer");
+
         VkPhysicalDeviceShaderMixedFloatDotProductFeaturesVALVE mixed {};
         mixed.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_MIXED_FLOAT_DOT_PRODUCT_FEATURES_VALVE;
         VkPhysicalDeviceShaderFloatControls2FeaturesKHR floatControls {
             VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT_CONTROLS_2_FEATURES_KHR
         };
-        mixed.pNext = &floatControls;
         VkPhysicalDeviceComputeShaderDerivativesFeaturesKHR derivatives {
             VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COMPUTE_SHADER_DERIVATIVES_FEATURES_KHR
         };
@@ -129,22 +132,92 @@ class DeviceFeatures
         };
         VkPhysicalDeviceVulkan13Features v13 { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };
         VkPhysicalDeviceVulkan12Features v12 { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES };
+        VkPhysicalDeviceShaderFloat16Int8Features float16Int8 {
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_FLOAT16_INT8_FEATURES
+        };
+        VkPhysicalDevice8BitStorageFeatures storage8 { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_8BIT_STORAGE_FEATURES };
+        VkPhysicalDeviceDescriptorIndexingFeatures descriptorIndexing {
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES
+        };
+        VkPhysicalDeviceBufferDeviceAddressFeatures bufferAddress {
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES
+        };
+        VkPhysicalDeviceShaderIntegerDotProductFeatures integerDot {
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_INTEGER_DOT_PRODUCT_FEATURES
+        };
+        VkPhysicalDeviceSynchronization2Features synchronization2 {
+            VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES
+        };
         VkPhysicalDeviceFeatures2 available { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
-        available.pNext = &v12;
-        v12.pNext = &v13;
-        v13.pNext = &mutableType;
-        mutableType.pNext = &descriptors;
-        descriptors.pNext = &derivatives;
-        derivatives.pNext = &mixed;
+        VkBaseOutStructure* queryTail = reinterpret_cast<VkBaseOutStructure*>(&available);
+        const auto appendQuery = [&queryTail](auto& feature)
+        {
+            queryTail->pNext = reinterpret_cast<VkBaseOutStructure*>(&feature);
+            queryTail = reinterpret_cast<VkBaseOutStructure*>(&feature);
+        };
+        const bool core12 = VK_API_VERSION_MAJOR(apiVersion) > 1 || VK_API_VERSION_MINOR(apiVersion) >= 2;
+        const bool core13 = VK_API_VERSION_MAJOR(apiVersion) > 1 || VK_API_VERSION_MINOR(apiVersion) >= 3;
+        if (core12)
+            appendQuery(v12);
+        else
+        {
+            appendQuery(float16Int8);
+            appendQuery(storage8);
+            appendQuery(descriptorIndexing);
+            appendQuery(bufferAddress);
+        }
+        if (core13)
+            appendQuery(v13);
+        else
+        {
+            appendQuery(synchronization2);
+            appendQuery(integerDot);
+        }
+        appendQuery(mutableType);
+        appendQuery(descriptors);
+        appendQuery(derivatives);
+        appendQuery(mixed);
+        appendQuery(floatControls);
         query(physical, &available);
-        if (!available.features.shaderInt16 || !available.features.shaderStorageImageReadWithoutFormat ||
-            !available.features.shaderStorageImageWriteWithoutFormat || !v12.shaderFloat16 || !v12.shaderInt8 ||
-            !v12.storageBuffer8BitAccess || !v12.runtimeDescriptorArray ||
-            !v12.descriptorBindingVariableDescriptorCount || !v12.bufferDeviceAddress || !v13.synchronization2 ||
-            !v13.shaderIntegerDotProduct || !mutableType.mutableDescriptorType || !descriptors.descriptorBuffer ||
-            !derivatives.computeDerivativeGroupLinear || !mixed.shaderMixedFloatDotProductFloat16AccFloat32 ||
-            !floatControls.shaderFloatControls2)
-            throw std::runtime_error("required FSR4 device feature unavailable");
+        std::vector<const char*> missingFeatures;
+        const auto requireFeature = [&missingFeatures](VkBool32 availableFeature, const char* name)
+        {
+            if (!availableFeature)
+                missingFeatures.push_back(name);
+        };
+        requireFeature(available.features.shaderInt16, "shaderInt16");
+        requireFeature(available.features.shaderStorageImageReadWithoutFormat, "shaderStorageImageReadWithoutFormat");
+        requireFeature(available.features.shaderStorageImageWriteWithoutFormat, "shaderStorageImageWriteWithoutFormat");
+        requireFeature(core12 ? v12.shaderFloat16 : float16Int8.shaderFloat16, "shaderFloat16");
+        requireFeature(core12 ? v12.shaderInt8 : float16Int8.shaderInt8, "shaderInt8");
+        requireFeature(core12 ? v12.storageBuffer8BitAccess : storage8.storageBuffer8BitAccess,
+                       "storageBuffer8BitAccess");
+        requireFeature(core12 ? v12.runtimeDescriptorArray : descriptorIndexing.runtimeDescriptorArray,
+                       "runtimeDescriptorArray");
+        requireFeature(core12 ? v12.descriptorBindingVariableDescriptorCount
+                              : descriptorIndexing.descriptorBindingVariableDescriptorCount,
+                       "descriptorBindingVariableDescriptorCount");
+        requireFeature(core12 ? v12.bufferDeviceAddress : bufferAddress.bufferDeviceAddress, "bufferDeviceAddress");
+        requireFeature(core13 ? v13.synchronization2 : synchronization2.synchronization2, "synchronization2");
+        requireFeature(core13 ? v13.shaderIntegerDotProduct : integerDot.shaderIntegerDotProduct,
+                       "shaderIntegerDotProduct");
+        requireFeature(mutableType.mutableDescriptorType, "mutableDescriptorType");
+        requireFeature(descriptors.descriptorBuffer, "descriptorBuffer");
+        requireFeature(derivatives.computeDerivativeGroupLinear, "computeDerivativeGroupLinear");
+        requireFeature(mixed.shaderMixedFloatDotProductFloat16AccFloat32,
+                       "shaderMixedFloatDotProductFloat16AccFloat32");
+        requireFeature(floatControls.shaderFloatControls2, "shaderFloatControls2");
+        if (!missingFeatures.empty())
+        {
+            std::string message = "missing FSR4 device feature(s): ";
+            for (size_t i = 0; i < missingFeatures.size(); ++i)
+            {
+                if (i)
+                    message += ", ";
+                message += missingFeatures[i];
+            }
+            throw std::runtime_error(message);
+        }
         uint32_t count = 0;
         if (enumerate(physical, nullptr, &count, nullptr) != VK_SUCCESS)
             throw std::runtime_error("extension count failed");
@@ -156,10 +229,25 @@ class DeviceFeatures
             if (std::none_of(extensions.begin(), extensions.end(),
                              [&](auto* e) { return std::strcmp(e, source.ppEnabledExtensionNames[i]) == 0; }))
                 extensions.push_back(source.ppEnabledExtensionNames[i]);
-        for (auto* required :
-             { VK_KHR_SHADER_FLOAT_CONTROLS_2_EXTENSION_NAME, VK_EXT_MUTABLE_DESCRIPTOR_TYPE_EXTENSION_NAME,
-               VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME, VK_KHR_COMPUTE_SHADER_DERIVATIVES_EXTENSION_NAME,
-               VK_VALVE_SHADER_MIXED_FLOAT_DOT_PRODUCT_EXTENSION_NAME })
+        std::vector<const char*> requiredExtensions { VK_KHR_SHADER_FLOAT_CONTROLS_2_EXTENSION_NAME,
+                                                      VK_EXT_MUTABLE_DESCRIPTOR_TYPE_EXTENSION_NAME,
+                                                      VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME,
+                                                      VK_KHR_COMPUTE_SHADER_DERIVATIVES_EXTENSION_NAME,
+                                                      VK_VALVE_SHADER_MIXED_FLOAT_DOT_PRODUCT_EXTENSION_NAME };
+        if (!core12)
+        {
+            requiredExtensions.insert(requiredExtensions.end(),
+                                      { VK_KHR_SHADER_FLOAT16_INT8_EXTENSION_NAME, VK_KHR_8BIT_STORAGE_EXTENSION_NAME,
+                                        VK_EXT_DESCRIPTOR_INDEXING_EXTENSION_NAME,
+                                        VK_KHR_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME,
+                                        VK_KHR_SHADER_FLOAT_CONTROLS_EXTENSION_NAME });
+        }
+        if (!core13)
+        {
+            requiredExtensions.insert(requiredExtensions.end(), { VK_KHR_SYNCHRONIZATION_2_EXTENSION_NAME,
+                                                                  VK_KHR_SHADER_INTEGER_DOT_PRODUCT_EXTENSION_NAME });
+        }
+        for (auto* required : requiredExtensions)
         {
             if (std::none_of(availableExtensions.begin(), availableExtensions.end(),
                              [&](const auto& e) { return std::strcmp(e.extensionName, required) == 0; }))
@@ -203,8 +291,12 @@ class DeviceFeatures
             core.shaderStorageImageReadWithoutFormat = VK_TRUE;
             info.pEnabledFeatures = &core;
         }
-        auto* e12 = find<VkPhysicalDeviceVulkan12Features>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES);
-        auto* e13 = find<VkPhysicalDeviceVulkan13Features>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES);
+        auto* e12 = core12
+                        ? find<VkPhysicalDeviceVulkan12Features>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES)
+                        : nullptr;
+        auto* e13 = core13
+                        ? find<VkPhysicalDeviceVulkan13Features>(VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES)
+                        : nullptr;
         if (e12)
         {
             e12->shaderFloat16 = e12->shaderInt8 = e12->storageBuffer8BitAccess = e12->runtimeDescriptorArray =
@@ -223,9 +315,15 @@ class DeviceFeatures
             auto* d = ensure<VkPhysicalDeviceDescriptorIndexingFeatures>(
                 VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES);
             d->runtimeDescriptorArray = d->descriptorBindingVariableDescriptorCount = VK_TRUE;
-            d->shaderStorageBufferArrayNonUniformIndexing |= v12.shaderStorageBufferArrayNonUniformIndexing;
-            d->shaderSampledImageArrayNonUniformIndexing |= v12.shaderSampledImageArrayNonUniformIndexing;
-            d->shaderStorageImageArrayNonUniformIndexing |= v12.shaderStorageImageArrayNonUniformIndexing;
+            d->shaderStorageBufferArrayNonUniformIndexing |=
+                core12 ? v12.shaderStorageBufferArrayNonUniformIndexing
+                       : descriptorIndexing.shaderStorageBufferArrayNonUniformIndexing;
+            d->shaderSampledImageArrayNonUniformIndexing |=
+                core12 ? v12.shaderSampledImageArrayNonUniformIndexing
+                       : descriptorIndexing.shaderSampledImageArrayNonUniformIndexing;
+            d->shaderStorageImageArrayNonUniformIndexing |=
+                core12 ? v12.shaderStorageImageArrayNonUniformIndexing
+                       : descriptorIndexing.shaderStorageImageArrayNonUniformIndexing;
             ensure<VkPhysicalDeviceBufferDeviceAddressFeatures>(
                 VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_BUFFER_DEVICE_ADDRESS_FEATURES)
                 ->bufferDeviceAddress = VK_TRUE;

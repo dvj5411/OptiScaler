@@ -27,6 +27,7 @@
 static VkDevice _device = VK_NULL_HANDLE;
 static VkInstance _instance = VK_NULL_HANDLE;
 static VkPhysicalDevice _PD = VK_NULL_HANDLE;
+static uint32_t _instanceApiVersion = VK_API_VERSION_1_0;
 static HWND _hwnd = nullptr;
 
 static std::mutex _vkPresentMutex;
@@ -122,6 +123,10 @@ static VkResult hkvkCreateInstance(const VkInstanceCreateInfo* pCreateInfo, cons
 
     VulkanSpoofing::hkvkCreateInstance(&localCreateInfo, pAllocator, pInstance);
 
+    _instanceApiVersion = localCreateInfo.pApplicationInfo && localCreateInfo.pApplicationInfo->apiVersion
+                              ? localCreateInfo.pApplicationInfo->apiVersion
+                              : VK_API_VERSION_1_0;
+
     VkResult result;
     {
         ScopedSkipSpoofingGlobal skipSpoofingGlobal {};
@@ -189,9 +194,12 @@ static VkResult hkvkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevice
     {
         try
         {
-            fsr4Features = std::make_unique<fsr4vk::DeviceFeatures>(
-                physicalDevice, localCreteInfo, o_vkGetPhysicalDeviceFeatures2, vkEnumerateDeviceExtensionProperties);
-            LOG_INFO("FSR4 Vulkan device feature contract enabled");
+            fsr4Features = std::make_unique<fsr4vk::DeviceFeatures>(physicalDevice, localCreteInfo, _instanceApiVersion,
+                                                                    o_vkGetPhysicalDeviceFeatures2,
+                                                                    vkEnumerateDeviceExtensionProperties);
+            LOG_INFO("FSR4 Vulkan device feature contract enabled for API {}.{}.{}",
+                     VK_API_VERSION_MAJOR(_instanceApiVersion), VK_API_VERSION_MINOR(_instanceApiVersion),
+                     VK_API_VERSION_PATCH(_instanceApiVersion));
         }
         catch (const std::exception& e)
         {
