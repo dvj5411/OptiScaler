@@ -194,6 +194,15 @@ static VkResult hkvkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevice
     {
         try
         {
+            std::string sourceChain;
+            auto* sourceNode = static_cast<const VkBaseInStructure*>(localCreteInfo.pNext);
+            for (size_t count = 0; sourceNode && count < 64; ++count, sourceNode = sourceNode->pNext)
+            {
+                if (!sourceChain.empty())
+                    sourceChain += ',';
+                sourceChain += std::to_string(sourceNode->sType);
+            }
+            LOG_INFO("FSR4 source device pNext sTypes: {}", sourceChain.empty() ? "none" : sourceChain);
             fsr4Features = std::make_unique<fsr4vk::DeviceFeatures>(physicalDevice, localCreteInfo, _instanceApiVersion,
                                                                     o_vkGetPhysicalDeviceFeatures2,
                                                                     vkEnumerateDeviceExtensionProperties);
