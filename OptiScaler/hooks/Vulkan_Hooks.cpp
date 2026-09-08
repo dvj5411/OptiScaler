@@ -126,6 +126,7 @@ static VkResult hkvkCreateInstance(const VkInstanceCreateInfo* pCreateInfo, cons
     _instanceApiVersion = localCreateInfo.pApplicationInfo && localCreateInfo.pApplicationInfo->apiVersion
                               ? localCreateInfo.pApplicationInfo->apiVersion
                               : VK_API_VERSION_1_0;
+    State::Instance().vulkanApiVersion = _instanceApiVersion;
 
     VkResult result;
     {

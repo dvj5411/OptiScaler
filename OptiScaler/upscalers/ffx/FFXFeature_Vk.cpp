@@ -8,6 +8,19 @@
 
 using namespace OptiMath;
 
+namespace
+{
+constexpr uint64_t kFsr4VulkanVersionId =
+    (0xF5A5CA1Eull << 32) | ((4ull << 22) | (0ull << 12) | 2ull);
+constexpr ffxStructType_t kFsr4VulkanApiVersionDescType = 0x46535234564b4150ull;
+
+struct Fsr4VulkanApiVersionDesc
+{
+    ffxApiHeader header;
+    uint32_t apiVersion;
+};
+} // namespace
+
 static inline uint32_t ffxApiGetSurfaceFormatVKLocal(VkFormat fmt)
 {
     switch (fmt)
@@ -191,7 +204,19 @@ bool FFXFeatureVk::InitFFX(const NVSDK_NGX_Parameter* InParameters)
         ffxOverrideVersion ov = { 0 };
         ov.header.type = FFX_API_DESC_TYPE_OVERRIDE_VERSION;
         ov.versionId = State::Instance().ffxUpscalerVersionIds[Config::Instance()->FfxUpscalerIndex.value_or_default()];
-        backendDesc.header.pNext = &ov.header;
+
+        Fsr4VulkanApiVersionDesc apiVersionDesc = {};
+        if (ov.versionId == kFsr4VulkanVersionId)
+        {
+            apiVersionDesc.header.type = kFsr4VulkanApiVersionDescType;
+            apiVersionDesc.header.pNext = &ov.header;
+            apiVersionDesc.apiVersion = State::Instance().vulkanApiVersion;
+            backendDesc.header.pNext = &apiVersionDesc.header;
+            LOG_INFO("FSR4 Vulkan command path selected for API {}.{}",
+                     VK_API_VERSION_MAJOR(apiVersionDesc.apiVersion), VK_API_VERSION_MINOR(apiVersionDesc.apiVersion));
+        }
+        else
+            backendDesc.header.pNext = &ov.header;
 
         LOG_DEBUG("_createContext!");
         auto ret = FfxApiProxy::VULKAN_CreateContext()(&_context, &_contextDesc.header, NULL);
