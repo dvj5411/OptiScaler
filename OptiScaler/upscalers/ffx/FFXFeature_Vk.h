@@ -9,6 +9,7 @@ class FFXFeatureVk : public FFXFeature, public IFeature_Vk
 {
   private:
     bool _resourceContractLogged = false;
+    bool _requiresExternalSharpening = false;
 
   protected:
     bool InitFFX(const NVSDK_NGX_Parameter* InParameters);
@@ -16,6 +17,7 @@ class FFXFeatureVk : public FFXFeature, public IFeature_Vk
     // From IFeature_Vk
     bool InitInternal(VkCommandBuffer InCmdList, NVSDK_NGX_Parameter* InParameters) override;
     bool EvaluateInternal(VkCommandBuffer InCmdBuffer, NVSDK_NGX_Parameter* InParameters) override;
+    bool RequiresExternalSharpening() const override { return _requiresExternalSharpening; }
 
   public:
     FFXFeatureVk(unsigned int InHandleId, NVSDK_NGX_Parameter* InParameters);

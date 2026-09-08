@@ -203,6 +203,9 @@ bool FFXFeatureVk::InitFFX(const NVSDK_NGX_Parameter* InParameters)
         ffxOverrideVersion ov = { 0 };
         ov.header.type = FFX_API_DESC_TYPE_OVERRIDE_VERSION;
         ov.versionId = State::Instance().ffxUpscalerVersionIds[Config::Instance()->FfxUpscalerIndex.value_or_default()];
+        _requiresExternalSharpening = ov.versionId == kFsr4VulkanVersionId;
+        if (_requiresExternalSharpening)
+            LOG_INFO("FSR4 Vulkan provider sharpening will use OptiScaler RCAS");
 
         Fsr4VulkanApiVersionDesc apiVersionDesc = {};
         if (ov.versionId == kFsr4VulkanVersionId)

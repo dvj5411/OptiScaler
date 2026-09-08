@@ -47,7 +47,8 @@ bool IFeature_Vk::Evaluate(VkCommandBuffer InCmdBuffer, NVSDK_NGX_Parameter* InP
 
     auto upscaler = GetUpscalerType();
     bool useRcas = upscaler == Upscaler::XeSS ||
-                   (upscaler == Upscaler::DLSS && Version() >= feature_version(2, 5, 1)) || upscaler == Upscaler::DLSSD;
+                   (upscaler == Upscaler::DLSS && Version() >= feature_version(2, 5, 1)) ||
+                   upscaler == Upscaler::DLSSD || RequiresExternalSharpening();
 
     if (!useRcas)
         useRcas = Config::Instance()->RcasEnabled.value_or_default();
@@ -246,7 +247,8 @@ bool IFeature_Vk::Evaluate(VkCommandBuffer InCmdBuffer, NVSDK_NGX_Parameter* InP
               } });
     }
 
-    // Iterate BACKWARDS to establish where each shader needs to pull its input from
+    // Iterate BACKWARDS to establish where each shader needs to pull its input
+    // from
     VkImageInfo currentTarget = originalOutput;
     for (auto it = pipeline.rbegin(); it != pipeline.rend(); ++it)
     {
@@ -260,7 +262,8 @@ bool IFeature_Vk::Evaluate(VkCommandBuffer InCmdBuffer, NVSDK_NGX_Parameter* InP
     }
 
     // Write target back into the params
-    // In DX11/DX12 we set ngx param but in Vulkan we can set just the resource info
+    // In DX11/DX12 we set ngx param but in Vulkan we can set just the resource
+    // info
     if (paramOutput)
     {
         paramOutput->Resource.ImageViewInfo.Image = currentTarget.Image;
