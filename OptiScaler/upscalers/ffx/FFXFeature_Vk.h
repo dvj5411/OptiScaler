@@ -9,6 +9,7 @@ class FFXFeatureVk : public FFXFeature, public IFeature_Vk
 {
   private:
     bool _resourceContractLogged = false;
+    bool _dispatchContractLogged = false;
     bool _disableProviderSharpening = false;
 
   protected:

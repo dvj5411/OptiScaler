@@ -18,6 +18,18 @@ struct Fsr4VulkanApiVersionDesc
     ffxApiHeader header;
     uint32_t apiVersion;
 };
+
+void Fsr4VulkanMessageCallback(uint32_t type, const wchar_t* message)
+{
+    if (!message)
+        return;
+
+    const auto text = wstring_to_string(message);
+    if (type == FFX_API_MESSAGE_TYPE_ERROR)
+        LOG_ERROR("FSR4 Vulkan provider: {}", text);
+    else
+        LOG_WARN("FSR4 Vulkan provider: {}", text);
+}
 } // namespace
 
 static inline uint32_t ffxApiGetSurfaceFormatVKLocal(VkFormat fmt)
@@ -205,7 +217,10 @@ bool FFXFeatureVk::InitFFX(const NVSDK_NGX_Parameter* InParameters)
         ov.versionId = State::Instance().ffxUpscalerVersionIds[Config::Instance()->FfxUpscalerIndex.value_or_default()];
         _disableProviderSharpening = ov.versionId == kFsr4VulkanVersionId;
         if (_disableProviderSharpening)
+        {
+            _contextDesc.fpMessage = Fsr4VulkanMessageCallback;
             LOG_INFO("FSR4 Vulkan provider internal sharpening disabled; OptiScaler RCAS remains user-controlled");
+        }
 
         Fsr4VulkanApiVersionDesc apiVersionDesc = {};
         if (ov.versionId == kFsr4VulkanVersionId)
@@ -512,8 +527,14 @@ bool FFXFeatureVk::EvaluateInternal(VkCommandBuffer InCmdBuffer, NVSDK_NGX_Param
         params.frameTimeDelta < 1.0f)
         params.frameTimeDelta = (float) GetDeltaTime();
 
-    if (InParameters->Get(NVSDK_NGX_Parameter_DLSS_Pre_Exposure, &params.preExposure) != NVSDK_NGX_Result_Success)
+    const auto preExposureResult = InParameters->Get(NVSDK_NGX_Parameter_DLSS_Pre_Exposure, &params.preExposure);
+    if (preExposureResult != NVSDK_NGX_Result_Success)
         params.preExposure = 1.0f;
+    else if (!std::isfinite(params.preExposure) || params.preExposure <= 0.0f)
+    {
+        LOG_WARN("Invalid pre-exposure {} received from game; using 1.0", params.preExposure);
+        params.preExposure = 1.0f;
+    }
 
     if (Version() >= feature_version { 3, 1, 1 } && _velocity != Config::Instance()->FsrVelocity.value_or_default())
     {
@@ -605,6 +626,16 @@ bool FFXFeatureVk::EvaluateInternal(VkCommandBuffer InCmdBuffer, NVSDK_NGX_Param
     else if (params.upscaleSize.height == 0)
     {
         params.upscaleSize.height = TargetHeight();
+    }
+
+    if (_disableProviderSharpening && !_dispatchContractLogged)
+    {
+        LOG_INFO("FSR4 Vulkan dispatch contract render={}x{} upscale={}x{} preExposure={} flags={} reset={} "
+                 "reactive={} transparency={}",
+                 params.renderSize.width, params.renderSize.height, params.upscaleSize.width, params.upscaleSize.height,
+                 params.preExposure, params.flags, params.reset, params.reactive.resource != nullptr,
+                 params.transparencyAndComposition.resource != nullptr);
+        _dispatchContractLogged = true;
     }
 
     LOG_DEBUG("Dispatch!!");
