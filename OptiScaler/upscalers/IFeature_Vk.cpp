@@ -47,8 +47,7 @@ bool IFeature_Vk::Evaluate(VkCommandBuffer InCmdBuffer, NVSDK_NGX_Parameter* InP
 
     auto upscaler = GetUpscalerType();
     bool useRcas = upscaler == Upscaler::XeSS ||
-                   (upscaler == Upscaler::DLSS && Version() >= feature_version(2, 5, 1)) ||
-                   upscaler == Upscaler::DLSSD || RequiresExternalSharpening();
+                   (upscaler == Upscaler::DLSS && Version() >= feature_version(2, 5, 1)) || upscaler == Upscaler::DLSSD;
 
     if (!useRcas)
         useRcas = Config::Instance()->RcasEnabled.value_or_default();

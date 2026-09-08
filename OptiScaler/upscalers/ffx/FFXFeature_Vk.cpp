@@ -203,9 +203,9 @@ bool FFXFeatureVk::InitFFX(const NVSDK_NGX_Parameter* InParameters)
         ffxOverrideVersion ov = { 0 };
         ov.header.type = FFX_API_DESC_TYPE_OVERRIDE_VERSION;
         ov.versionId = State::Instance().ffxUpscalerVersionIds[Config::Instance()->FfxUpscalerIndex.value_or_default()];
-        _requiresExternalSharpening = ov.versionId == kFsr4VulkanVersionId;
-        if (_requiresExternalSharpening)
-            LOG_INFO("FSR4 Vulkan provider sharpening will use OptiScaler RCAS");
+        _disableProviderSharpening = ov.versionId == kFsr4VulkanVersionId;
+        if (_disableProviderSharpening)
+            LOG_INFO("FSR4 Vulkan provider internal sharpening disabled; OptiScaler RCAS remains user-controlled");
 
         Fsr4VulkanApiVersionDesc apiVersionDesc = {};
         if (ov.versionId == kFsr4VulkanVersionId)
@@ -474,8 +474,16 @@ bool FFXFeatureVk::EvaluateInternal(VkCommandBuffer InCmdBuffer, NVSDK_NGX_Param
         LOG_WARN("Can't get motion vector scales!");
     }
 
-    params.enableSharpening = _sharpness > 0.0f;
-    params.sharpness = _sharpness;
+    if (_disableProviderSharpening)
+    {
+        params.enableSharpening = false;
+        params.sharpness = 0.0f;
+    }
+    else
+    {
+        params.enableSharpening = _sharpness > 0.0f;
+        params.sharpness = _sharpness;
+    }
 
     if (DepthInverted())
     {

@@ -52,11 +52,12 @@ Dispatches pass the game's `VkCommandBuffer` and `VkImage` handles through
 `ffxDispatchDescUpscale` and `FfxApiResource`. The provider records work into
 that command buffer; it must not submit it or take ownership of game resources.
 
-The experimental provider does not contain an internal sharpening pass. When a
-game requests sharpening, the Vulkan integration automatically routes that work
-through OptiScaler's RCAS pass and sends an unsharpened dispatch to the provider.
-This is required for titles such as Baldur's Gate 3, which enable sharpening in
-their NGX feature parameters.
+The experimental provider does not contain an internal sharpening pass, so the
+Vulkan integration always sends it an unsharpened dispatch. Users can
+independently enable or disable OptiScaler's RCAS pass with `Enabled` in the
+`[CAS]` section or the `Enable RCAS/DA` menu option. With RCAS disabled, the
+provider output remains unsharpened. This separation is required for titles such
+as Baldur's Gate 3, which enable sharpening in their NGX feature parameters.
 
 ## FSR 4 implementation requirements
 
