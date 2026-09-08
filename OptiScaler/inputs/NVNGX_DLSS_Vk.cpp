@@ -1067,6 +1067,10 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_VULKAN_EvaluateFeature(VkCommandBuffer 
 
     auto upscaleResult = deviceContext->Evaluate(InCmdList, InParameters);
 
+    // Always close the timestamp pair, including failed evaluations that will
+    // trigger fallback below. Leaving an unmatched start disables later samples.
+    UpscalerTimeVk::UpscaleEnd(InCmdList);
+
     if (!upscaleResult)
         ImGui::InsertNotification({ ImGuiToastType::Error, 10000, "Upscaler failed to run!" });
 
@@ -1077,8 +1081,6 @@ NVSDK_NGX_API NVSDK_NGX_Result NVSDK_NGX_VULKAN_EvaluateFeature(VkCommandBuffer 
         state.changeBackend[handleId] = true;
         return NVSDK_NGX_Result_Success;
     }
-
-    UpscalerTimeVk::UpscaleEnd(InCmdList);
 
     return upscaleResult ? NVSDK_NGX_Result_Success : NVSDK_NGX_Result_Fail;
 }
