@@ -70,11 +70,17 @@ class DeviceFeatures
                       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SYNCHRONIZATION_2_FEATURES);
             FSR4_COPY(VkPhysicalDeviceShaderDemoteToHelperInvocationFeatures,
                       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SHADER_DEMOTE_TO_HELPER_INVOCATION_FEATURES);
+            FSR4_COPY(VkPhysicalDeviceSubgroupSizeControlFeatures,
+                      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SUBGROUP_SIZE_CONTROL_FEATURES);
             FSR4_COPY(VkPhysicalDeviceTimelineSemaphoreFeatures,
                       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_TIMELINE_SEMAPHORE_FEATURES);
             FSR4_COPY(VkPhysicalDevice16BitStorageFeatures, VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_16BIT_STORAGE_FEATURES);
             FSR4_COPY(VkPhysicalDeviceMemoryPriorityFeaturesEXT,
                       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MEMORY_PRIORITY_FEATURES_EXT);
+            FSR4_COPY(VkPhysicalDeviceDepthClipEnableFeaturesEXT,
+                      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DEPTH_CLIP_ENABLE_FEATURES_EXT);
+            FSR4_COPY(VkPhysicalDeviceCoherentMemoryFeaturesAMD,
+                      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_COHERENT_MEMORY_FEATURES_AMD);
             FSR4_COPY(VkPhysicalDevicePipelineExecutablePropertiesFeaturesKHR,
                       VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PIPELINE_EXECUTABLE_PROPERTIES_FEATURES_KHR);
             FSR4_COPY(VkPhysicalDeviceMutableDescriptorTypeFeaturesEXT,
