@@ -1483,6 +1483,9 @@ class FfxApiProxy
                                                    L"amd_fidelityfx_vk.dll" };
 
             auto optiPath = Config::Instance()->MainDllPath.value();
+            const auto providerDirectory = std::filesystem::path(optiPath) / L"OptiScaler";
+            if (std::filesystem::is_directory(providerDirectory))
+                optiPath = providerDirectory.wstring();
 
             for (size_t i = 0; i < dllNames.size(); i++)
             {
