@@ -207,6 +207,9 @@ bool FFXFeatureVk::InitFFX(const NVSDK_NGX_Parameter* InParameters)
     _name = "FSR";
     parse_version(version);
 
+    if (Version().major >= 4)
+        State::Instance().currentFsr4Preset.reset();
+
     SetInit(true);
 
     return true;
@@ -585,6 +588,29 @@ bool FFXFeatureVk::EvaluateInternal(VkCommandBuffer InCmdBuffer, NVSDK_NGX_Param
     {
         LOG_ERROR("ffxFsr2ContextDispatch error: {0}", FfxApiProxy::ReturnCodeToString(result));
         return false;
+    }
+
+    // Vulkan providers own their shader/model selection; the executable-pattern
+    // hooks used for AMD's DX12 SDK DLLs are neither applicable nor authoritative
+    // here. Track the model selected by the standard FSR render ratio so the menu
+    // reports the active Vulkan preset instead of a false hook/fallback warning.
+    if (Version().major >= 4 && params.renderSize.width > 0)
+    {
+        const auto paddedOutputWidth = (params.upscaleSize.width + 7u) & ~7u;
+        const float ratio = static_cast<float>(paddedOutputWidth) / params.renderSize.width;
+        uint32_t activePreset = 0;
+        if (ratio >= 2.99f)
+            activePreset = 5;
+        else if (ratio >= 1.99f)
+            activePreset = 3;
+        else if (ratio >= 1.69f)
+            activePreset = 2;
+        else if (ratio >= 1.49f)
+            activePreset = 1;
+
+        if (State::Instance().currentFsr4Preset != activePreset)
+            LOG_INFO("Vulkan FSR4 provider selected preset {} for ratio {:.4f}", activePreset, ratio);
+        State::Instance().currentFsr4Preset = activePreset;
     }
 
     return true;
