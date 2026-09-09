@@ -2745,10 +2745,17 @@ void MenuCommon::RenderActiveUpscalerSettings(RenderMenuContext& ctx)
                     const char* presets[] = { "Default",  "Preset 0", "Preset 1", "Preset 2",
                                               "Preset 3", "Preset 4", "Preset 5" };
                     int currentPresetIdx = config->Fsr4Preset.has_value() ? config->Fsr4Preset.value() + 1 : 0;
+                    const bool vulkanProviderManagedPreset = state.api == API::Vulkan;
+                    if (vulkanProviderManagedPreset)
+                        currentPresetIdx = state.currentFsr4Preset.has_value()
+                                               ? static_cast<int>(state.currentFsr4Preset.value()) + 1
+                                               : 0;
 
                     if (currentPresetIdx < 0 || currentPresetIdx >= IM_ARRAYSIZE(presets))
                         currentPresetIdx = 0;
 
+                    if (vulkanProviderManagedPreset)
+                        ImGui::BeginDisabled();
                     ImGui::SetNextItemWidth(150.0f * menuResScale);
                     if (ImGui::Combo("FSR4 Preset", &currentPresetIdx, presets, IM_ARRAYSIZE(presets)))
                     {
@@ -2760,19 +2767,32 @@ void MenuCommon::RenderActiveUpscalerSettings(RenderMenuContext& ctx)
                         state.newBackend = currentBackend;
                         MARK_ALL_BACKENDS_CHANGED();
                     }
-                    ShowHelpMarker("Each internal FSR4 preset is tuned for a specific resolution.\n"
-                                   "Selecting an FSR4 preset won't change the in-game\nupscaler preset!!!\n\n"
-                                   "Preset 0 is meant for FSR Native AA\n"
-                                   "Preset 1 is meant for Quality/Ultra Quality\n"
-                                   "Preset 2 is meant for Balanced\n"
-                                   "Preset 3 is meant for Performance\n"
-                                   "Preset 4 is meant for DRS\n"
-                                   "Preset 5 is meant for Ultra Performance");
+                    if (vulkanProviderManagedPreset)
+                        ImGui::EndDisabled();
+                    if (vulkanProviderManagedPreset)
+                        ShowHelpMarker("Vulkan FSR4 providers select the model from the active render-to-output ratio.\n"
+                                       "Change the game's upscaling quality mode to change this preset.");
+                    else
+                        ShowHelpMarker("Each internal FSR4 preset is tuned for a specific resolution.\n"
+                                       "Selecting an FSR4 preset won't change the in-game\nupscaler preset!!!\n\n"
+                                       "Preset 0 is meant for FSR Native AA\n"
+                                       "Preset 1 is meant for Quality/Ultra Quality\n"
+                                       "Preset 2 is meant for Balanced\n"
+                                       "Preset 3 is meant for Performance\n"
+                                       "Preset 4 is meant for DRS\n"
+                                       "Preset 5 is meant for Ultra Performance");
 
                     // Display the active preset right next to the combo box instead of using a table
                     ImGui::SameLine();
                     if (state.currentFsr4Preset.has_value())
-                        ImGui::TextDisabled("(Active: %d)", state.currentFsr4Preset.value());
+                    {
+                        if (vulkanProviderManagedPreset)
+                            ImGui::TextDisabled("(Provider selected: %d)", state.currentFsr4Preset.value());
+                        else
+                            ImGui::TextDisabled("(Active: %d)", state.currentFsr4Preset.value());
+                    }
+                    else if (vulkanProviderManagedPreset)
+                        ImGui::TextDisabled("(Provider managed; awaiting dispatch)");
                     else if (FSR4ModelSelection::IsInt8FsrHooked())
                         ImGui::TextColored(toneMapColor(ImVec4(1.f, 0.8f, 0.f, 1.f)), "(Potential FSR3 fallback)");
                     else

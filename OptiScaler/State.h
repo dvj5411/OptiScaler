@@ -311,7 +311,6 @@ class State
     bool creatingD3DDevice = false;
     bool vulkanSkipHooks = false;
     VkInstance VulkanInstance = nullptr;
-    uint32_t vulkanApiVersion = VK_API_VERSION_1_0;
 
     // Framegraph
     std::deque<double> upscaleTimes;
