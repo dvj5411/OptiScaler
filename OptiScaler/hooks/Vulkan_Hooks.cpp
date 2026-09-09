@@ -1,11 +1,13 @@
 #include "pch.h"
 
 #include "Vulkan_Hooks.h"
-#include "Fsr4DeviceFeatures.h"
 
 #include <Util.h>
 #include <Config.h>
 #include <SysUtils.h>
+
+#include <inputs/FfxApi_Vk_DeviceRequirements.h>
+#include <proxies/FfxApi_Proxy.h>
 
 #include <menu/menu_overlay_vk.h>
 #include <proxies/KernelBase_Proxy.h>
@@ -126,7 +128,6 @@ static VkResult hkvkCreateInstance(const VkInstanceCreateInfo* pCreateInfo, cons
     _instanceApiVersion = localCreateInfo.pApplicationInfo && localCreateInfo.pApplicationInfo->apiVersion
                               ? localCreateInfo.pApplicationInfo->apiVersion
                               : VK_API_VERSION_1_0;
-    State::Instance().vulkanApiVersion = _instanceApiVersion;
 
     VkResult result;
     {
@@ -185,40 +186,46 @@ static VkResult hkvkCreateDevice(VkPhysicalDevice physicalDevice, const VkDevice
 
     VulkanSpoofing::hkvkCreateDevice(physicalDevice, &localCreteInfo, pAllocator, pDevice);
 
-    // Disabled by default while the provider's game-input permutations are
-    // still experimental. The copied chain lives through the actual call.
-    std::unique_ptr<fsr4vk::DeviceFeatures> fsr4Features;
-    char fsr4OptIn[8] {};
-    if (!State::Instance().creatingD3DDevice &&
-        GetEnvironmentVariableA("FSR4_VK_ENABLE_DEVICE_FEATURES", fsr4OptIn, sizeof(fsr4OptIn)) == 1 &&
-        fsr4OptIn[0] == '1')
+    // A Vulkan FFX provider may optionally prepare a device create-info before
+    // the game creates its VkDevice. This bridge is provider-agnostic: unknown
+    // query descriptors preserve the application's original create-info.
+    ffxQueryDescVkPrepareDevice providerRequirements {};
+    const VkDeviceCreateInfo* deviceCreateInfo = &localCreteInfo;
+    if (!State::Instance().creatingD3DDevice && FfxApiProxy::InitFfxVk())
     {
-        try
+        providerRequirements.header.type = FFX_API_QUERY_DESC_TYPE_VK_PREPARE_DEVICE;
+        providerRequirements.physicalDevice = physicalDevice;
+        providerRequirements.sourceCreateInfo = &localCreteInfo;
+        providerRequirements.apiVersion = _instanceApiVersion;
+        providerRequirements.getPhysicalDeviceFeatures2 = o_vkGetPhysicalDeviceFeatures2;
+        providerRequirements.enumerateDeviceExtensionProperties = vkEnumerateDeviceExtensionProperties;
+
+        const auto queryResult = FfxApiProxy::VULKAN_Query()(nullptr, &providerRequirements.header);
+        if (queryResult == FFX_API_RETURN_OK && providerRequirements.outputCreateInfo && providerRequirements.token)
         {
-            std::string sourceChain;
-            auto* sourceNode = static_cast<const VkBaseInStructure*>(localCreteInfo.pNext);
-            for (size_t count = 0; sourceNode && count < 64; ++count, sourceNode = sourceNode->pNext)
-            {
-                if (!sourceChain.empty())
-                    sourceChain += ',';
-                sourceChain += std::to_string(sourceNode->sType);
-            }
-            LOG_INFO("FSR4 source device pNext sTypes: {}", sourceChain.empty() ? "none" : sourceChain);
-            fsr4Features = std::make_unique<fsr4vk::DeviceFeatures>(physicalDevice, localCreteInfo, _instanceApiVersion,
-                                                                    o_vkGetPhysicalDeviceFeatures2,
-                                                                    vkEnumerateDeviceExtensionProperties);
-            LOG_INFO("FSR4 Vulkan device feature contract enabled for API {}.{}.{}",
+            deviceCreateInfo = providerRequirements.outputCreateInfo;
+            LOG_INFO("Vulkan FFX provider prepared device requirements for API {}.{}.{}",
                      VK_API_VERSION_MAJOR(_instanceApiVersion), VK_API_VERSION_MINOR(_instanceApiVersion),
                      VK_API_VERSION_PATCH(_instanceApiVersion));
         }
-        catch (const std::exception& e)
+        else if (queryResult != FFX_API_RETURN_ERROR_UNKNOWN_DESCTYPE && queryResult != FFX_API_RETURN_NO_PROVIDER)
         {
-            LOG_ERROR("FSR4 Vulkan feature opt-in rejected: {}", e.what());
-            return VK_ERROR_FEATURE_NOT_PRESENT;
+            LOG_WARN("Vulkan FFX provider device negotiation failed: {}{}{}", static_cast<uint32_t>(queryResult),
+                     providerRequirements.errorMessage ? " - " : "",
+                     providerRequirements.errorMessage ? providerRequirements.errorMessage : "");
         }
     }
-    auto result =
-        o_vkCreateDevice(physicalDevice, fsr4Features ? fsr4Features->get() : &localCreteInfo, pAllocator, pDevice);
+    auto result = o_vkCreateDevice(physicalDevice, deviceCreateInfo, pAllocator, pDevice);
+
+    if (providerRequirements.token)
+    {
+        ffxQueryDescVkReleaseDevice release {};
+        release.header.type = FFX_API_QUERY_DESC_TYPE_VK_RELEASE_DEVICE;
+        release.token = providerRequirements.token;
+        const auto releaseResult = FfxApiProxy::VULKAN_Query()(nullptr, &release.header);
+        if (releaseResult != FFX_API_RETURN_OK)
+            LOG_WARN("Vulkan FFX provider device negotiation release failed: {}", static_cast<uint32_t>(releaseResult));
+    }
 
     if (result == VK_SUCCESS && Config::Instance()->OverlayMenu.value_or_default())
     {

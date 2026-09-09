@@ -8,30 +8,6 @@
 
 using namespace OptiMath;
 
-namespace
-{
-constexpr uint64_t kFsr4VulkanVersionId = (0xF5A5CA1Eull << 32) | ((4ull << 22) | (0ull << 12) | 2ull);
-constexpr ffxStructType_t kFsr4VulkanApiVersionDescType = 0x46535234564b4150ull;
-
-struct Fsr4VulkanApiVersionDesc
-{
-    ffxApiHeader header;
-    uint32_t apiVersion;
-};
-
-void Fsr4VulkanMessageCallback(uint32_t type, const wchar_t* message)
-{
-    if (!message)
-        return;
-
-    const auto text = wstring_to_string(message);
-    if (type == FFX_API_MESSAGE_TYPE_ERROR)
-        LOG_ERROR("FSR4 Vulkan provider: {}", text);
-    else
-        LOG_WARN("FSR4 Vulkan provider: {}", text);
-}
-} // namespace
-
 static inline uint32_t ffxApiGetSurfaceFormatVKLocal(VkFormat fmt)
 {
     switch (fmt)
@@ -215,25 +191,7 @@ bool FFXFeatureVk::InitFFX(const NVSDK_NGX_Parameter* InParameters)
         ffxOverrideVersion ov = { 0 };
         ov.header.type = FFX_API_DESC_TYPE_OVERRIDE_VERSION;
         ov.versionId = State::Instance().ffxUpscalerVersionIds[Config::Instance()->FfxUpscalerIndex.value_or_default()];
-        _disableProviderSharpening = ov.versionId == kFsr4VulkanVersionId;
-        if (_disableProviderSharpening)
-        {
-            _contextDesc.fpMessage = Fsr4VulkanMessageCallback;
-            LOG_INFO("FSR4 Vulkan provider internal sharpening disabled; OptiScaler RCAS remains user-controlled");
-        }
-
-        Fsr4VulkanApiVersionDesc apiVersionDesc = {};
-        if (ov.versionId == kFsr4VulkanVersionId)
-        {
-            apiVersionDesc.header.type = kFsr4VulkanApiVersionDescType;
-            apiVersionDesc.header.pNext = &ov.header;
-            apiVersionDesc.apiVersion = State::Instance().vulkanApiVersion;
-            backendDesc.header.pNext = &apiVersionDesc.header;
-            LOG_INFO("FSR4 Vulkan command path selected for API {}.{}", VK_API_VERSION_MAJOR(apiVersionDesc.apiVersion),
-                     VK_API_VERSION_MINOR(apiVersionDesc.apiVersion));
-        }
-        else
-            backendDesc.header.pNext = &ov.header;
+        backendDesc.header.pNext = &ov.header;
 
         LOG_DEBUG("_createContext!");
         auto ret = FfxApiProxy::VULKAN_CreateContext()(&_context, &_contextDesc.header, NULL);
@@ -489,16 +447,8 @@ bool FFXFeatureVk::EvaluateInternal(VkCommandBuffer InCmdBuffer, NVSDK_NGX_Param
         LOG_WARN("Can't get motion vector scales!");
     }
 
-    if (_disableProviderSharpening)
-    {
-        params.enableSharpening = false;
-        params.sharpness = 0.0f;
-    }
-    else
-    {
-        params.enableSharpening = _sharpness > 0.0f;
-        params.sharpness = _sharpness;
-    }
+    params.enableSharpening = _sharpness > 0.0f;
+    params.sharpness = _sharpness;
 
     if (DepthInverted())
     {
@@ -626,16 +576,6 @@ bool FFXFeatureVk::EvaluateInternal(VkCommandBuffer InCmdBuffer, NVSDK_NGX_Param
     else if (params.upscaleSize.height == 0)
     {
         params.upscaleSize.height = TargetHeight();
-    }
-
-    if (_disableProviderSharpening && !_dispatchContractLogged)
-    {
-        LOG_INFO("FSR4 Vulkan dispatch contract render={}x{} upscale={}x{} preExposure={} flags={} reset={} "
-                 "reactive={} transparency={}",
-                 params.renderSize.width, params.renderSize.height, params.upscaleSize.width, params.upscaleSize.height,
-                 params.preExposure, params.flags, params.reset, params.reactive.resource != nullptr,
-                 params.transparencyAndComposition.resource != nullptr);
-        _dispatchContractLogged = true;
     }
 
     LOG_DEBUG("Dispatch!!");
