@@ -5,6 +5,8 @@
 
 namespace FFXVkPresetReporting
 {
+// Wire return code from newer FFX SDKs; older SDK headers omit its enum name.
+constexpr ffxReturnCode_t ProviderNoSupportNewDescriptor = 7;
 inline std::optional<uint32_t> SupportedPresets(PfnFfxQuery query, ffxContext* context)
 {
     if (query == nullptr || context == nullptr || *context == nullptr)
@@ -52,7 +54,7 @@ inline std::optional<uint32_t> Read(PfnFfxQuery query, ffxContext* context, bool
     desc.activePreset = FSR4VK_PRESET_UNKNOWN;
     const auto result = query(context, &desc.header);
     if (result == FFX_API_RETURN_ERROR_UNKNOWN_DESCTYPE ||
-        result == FFX_API_RETURN_PROVIDER_NO_SUPPORT_NEW_DESCTYPE)
+        result == ProviderNoSupportNewDescriptor)
         supported = false; // Older/other providers: probe only once per context.
 
     if (result != FFX_API_RETURN_OK)
