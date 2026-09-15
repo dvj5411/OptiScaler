@@ -3,6 +3,7 @@
 #include <Util.h>
 #include <proxies/FfxApi_Proxy.h>
 #include "FFXFeature_Vk.h"
+#include "FFXVkPresetReporting.h"
 #include "nvsdk_ngx_vk.h"
 #include "MathUtils.h"
 
@@ -159,6 +160,9 @@ bool FFXFeatureVk::InitFFX(const NVSDK_NGX_Parameter* InParameters)
     if (IsInited())
         return true;
 
+    State::Instance().currentFsr4Preset.reset();
+    _presetQuerySupported = true;
+
     if (PhysicalDevice == nullptr)
     {
         LOG_ERROR("PhysicalDevice is null!");
@@ -203,6 +207,20 @@ bool FFXFeatureVk::InitFFX(const NVSDK_NGX_Parameter* InParameters)
         }
     }
 
+    const auto supportedPresets = FFXVkPresetReporting::SupportedPresets(FfxApiProxy::VULKAN_Query(), &_context);
+    const auto requestedPreset = Config::Instance()->Fsr4Preset.has_value()
+                                     ? Config::Instance()->Fsr4Preset.value() : FSR4VK_PRESET_AUTO;
+    if (supportedPresets.has_value())
+    {
+        const auto result = FFXVkPresetReporting::Apply(FfxApiProxy::VULKAN_Configure(), &_context,
+                                                       *supportedPresets, requestedPreset);
+        if (result != FFX_API_RETURN_OK)
+            LOG_WARN("Vulkan FSR4 preset {} rejected; new context remains Auto ({})", requestedPreset,
+                     FfxApiProxy::ReturnCodeToString(result));
+    }
+    else if (requestedPreset != FSR4VK_PRESET_AUTO)
+        LOG_WARN("Vulkan FSR4 provider does not advertise preset forcing; using provider default");
+
     auto version = State::Instance().ffxUpscalerVersionNames[Config::Instance()->FfxUpscalerIndex.value_or_default()];
     _name = "FSR";
     parse_version(version);
@@ -228,6 +246,8 @@ bool FFXFeatureVk::InitInternal(VkCommandBuffer InCmdList, NVSDK_NGX_Parameter* 
 bool FFXFeatureVk::EvaluateInternal(VkCommandBuffer InCmdBuffer, NVSDK_NGX_Parameter* InParameters)
 {
     LOG_FUNC();
+
+    FFXVkPresetReporting::DispatchReport presetReport { State::Instance().currentFsr4Preset };
 
     if (!IsInited())
         return false;
@@ -590,28 +610,8 @@ bool FFXFeatureVk::EvaluateInternal(VkCommandBuffer InCmdBuffer, NVSDK_NGX_Param
         return false;
     }
 
-    // Vulkan providers own their shader/model selection; the executable-pattern
-    // hooks used for AMD's DX12 SDK DLLs are neither applicable nor authoritative
-    // here. Track the model selected by the standard FSR render ratio so the menu
-    // reports the active Vulkan preset instead of a false hook/fallback warning.
-    if (Version().major >= 4 && params.renderSize.width > 0)
-    {
-        const auto paddedOutputWidth = (params.upscaleSize.width + 7u) & ~7u;
-        const float ratio = static_cast<float>(paddedOutputWidth) / params.renderSize.width;
-        uint32_t activePreset = 0;
-        if (ratio >= 2.99f)
-            activePreset = 5;
-        else if (ratio >= 1.99f)
-            activePreset = 3;
-        else if (ratio >= 1.69f)
-            activePreset = 2;
-        else if (ratio >= 1.49f)
-            activePreset = 1;
-
-        if (State::Instance().currentFsr4Preset != activePreset)
-            LOG_INFO("Vulkan FSR4 provider selected preset {} for ratio {:.4f}", activePreset, ratio);
-        State::Instance().currentFsr4Preset = activePreset;
-    }
+    presetReport.activePreset =
+        FFXVkPresetReporting::Read(FfxApiProxy::VULKAN_Query(), &_context, _presetQuerySupported);
 
     return true;
 }
