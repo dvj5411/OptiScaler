@@ -429,6 +429,10 @@ static const QuirkEntry quirkTable[] = {
     QUIRK_ENTRY_UE(dungeonhaven, GameQuirk::DisableDxgiSpoofing, GameQuirk::ForceAutoExposure,
                    GameQuirk::DontUseUnrealColorBarriers, GameQuirk::DontUseUnrealMVBarriers),
 
+    // Sword and Fairy 7
+    // No UE barriers to fix crash on upscaler init
+    QUIRK_ENTRY_UE(pal7, GameQuirk::DontUseUnrealColorBarriers, GameQuirk::DontUseUnrealMVBarriers),
+
     // Watch Dogs: Legion
     // AE required to fix FSR4 ghosting
     QUIRK_ENTRY("watchdogslegion.exe", GameQuirk::ForceAutoExposure),
@@ -496,7 +500,7 @@ static const QuirkEntry quirkTable[] = {
 
     // Disable FSR2/3 inputs due to crashing/custom implementations
     //
-    // Forgive Me Father 2, Revenge of the Savage Planet, F1 22, Metal Eden, Until Dawn, Bloomand Rage, 171, Microsoft
+    // Forgive Me Father 2, Revenge of the Savage Planet, F1 22, Metal Eden, Until Dawn, Bloom and Rage, 171, Microsoft
     // Flight Simulator (2020) - MSFS2020, Banishers: Ghosts of New Eden,Rune Factory Guardians of Azuma, Supraworld, F1
     // Manager 2024, Keeper (+ WinGDK PaganIdol version), Assetto Corsa Rally
     QUIRK_ENTRY_UE(fmf2, GameQuirk::DisableFSR2Inputs, GameQuirk::DisableFSR3Inputs),
@@ -538,7 +542,7 @@ static const QuirkEntry quirkTable[] = {
 
     // Rise of the Tomb Raider
     // Hudfix incompatible
-    QUIRK_ENTRY("rottr.exe", GameQuirk::DisableHudfix),
+    QUIRK_ENTRY("rottr.exe", GameQuirk::DisableHudfix, GameQuirk::SkipD3D11FeatureLevelElevation),
 
     // Shadow of the Tomb Raider
     // Hudfix incompatible
@@ -569,7 +573,7 @@ static const QuirkEntry quirkTable[] = {
 
     // No Man's Sky
     QUIRK_ENTRY("nms.exe", GameQuirk::KernelBaseHooks, GameQuirk::VulkanDLSSBarrierFixup,
-                GameQuirk::EnableVulkanSpoofing),
+                GameQuirk::EnableVulkanSpoofing, GameQuirk::FSRFGHudlessMismatchFixup),
 
     // RTX Remix
     QUIRK_ENTRY("nvremixbridge.exe", GameQuirk::DisableDxgiSpoofing, GameQuirk::LoadVulkanManually,
