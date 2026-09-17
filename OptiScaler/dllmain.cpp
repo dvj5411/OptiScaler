@@ -47,7 +47,6 @@
 #include <magic_enum.hpp>
 #include <version_check.h>
 #include <misc/IdentifyGpu.h>
-#include <misc/StartupProbeDiagnostic.h>
 #include <sha1/sha1.hpp>
 
 static std::vector<HMODULE> _asiHandles;
@@ -1753,18 +1752,7 @@ DWORD WINAPI getGpuInfo(LPVOID hModuleVoid)
 
     // If DX12 already loaded then grab the full GPU info right away
     if (hModuleVoid)
-    {
-        if (StartupProbeDiagnostic::SkipBackgroundD3D12Probe(State::Instance().isRunningOnLinux,
-                                                           State::Instance().gameExe))
-        {
-            LOG_WARN("RDR2_DIAGNOSTIC: skipping background D3D12 capability probe; "
-                     "Vulkan hooks and on-demand D3D12 capability checks remain enabled");
-        }
-        else
-        {
-            IdentifyGpu::updateD3d12Capabilities();
-        }
-    }
+        IdentifyGpu::updateD3d12Capabilities();
 
     return 0;
 }

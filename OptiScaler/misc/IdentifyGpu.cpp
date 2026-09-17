@@ -1,6 +1,5 @@
 #include "pch.h"
 #include "IdentifyGpu.h"
-#include "StartupProbeDiagnostic.h"
 
 #include <magic_enum.hpp>
 #include <include/device_info/device_info.hpp>
@@ -421,22 +420,7 @@ void IdentifyGpu::updateD3d12Capabilities(D3d12Proxy::PFN_D3D12CreateDevice o_D3
             ScopedCreatingD3DDevice scopedCreating {};
             ScopedSkipVulkanHooks skipVulkanHooks {};
             ComPtr<ID3D12Device> localDevice;
-            const bool traceRdr2Probe = StartupProbeDiagnostic::SkipBackgroundD3D12Probe(
-                State::Instance().isRunningOnLinux, State::Instance().gameExe);
-            if (traceRdr2Probe)
-            {
-                MEMORY_BASIC_INFORMATION memory {};
-                const auto target = reinterpret_cast<const void*>(pD3D12CreateDevice);
-                const auto queryBytes = VirtualQuery(target, &memory, sizeof(memory));
-                LOG_WARN("RDR2_DIAGNOSTIC: D3D12 capability call target={}, hook_override={}, "
-                         "query_bytes={}, state={:X}, protect={:X}, allocation_base={}",
-                         target, o_D3D12CreateDevice != nullptr, queryBytes,
-                         memory.State, memory.Protect, memory.AllocationBase);
-            }
             auto createResult = pD3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_12_0, IID_PPV_ARGS(&localDevice));
-            if (traceRdr2Probe)
-                LOG_WARN("RDR2_DIAGNOSTIC: D3D12 capability call returned {:X}",
-                         static_cast<unsigned int>(createResult));
 
             if (SUCCEEDED(createResult) && localDevice)
             {
