@@ -14,6 +14,12 @@
 #include <vulkan/vulkan_core.h>
 #include <misc/IdentifyGpu.h>
 #include "Vulkan_Fsr4_Compat.h"
+#include "Vulkan_Legacy_Bda.h"
+
+static bool PreferModernRdr2Bda()
+{
+    return VulkanLegacyBda::IsRdr2Proton(State::Instance().isRunningOnLinux, State::Instance().gameExe);
+}
 
 static std::map<std::string, bool> vkDeviceExtensions;
 static std::map<std::string, bool> vkInstanceExtensions;
@@ -728,6 +734,20 @@ VkResult VulkanSpoofing::hkvkCreateDevice(VkPhysicalDevice physicalDevice, VkDev
 
     LOG_FUNC();
 
+    if (PreferModernRdr2Bda())
+    {
+        for (uint32_t i = 0; i < pCreateInfo->enabledExtensionCount; ++i)
+        {
+            if (std::strcmp(pCreateInfo->ppEnabledExtensionNames[i], VK_EXT_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME) == 0)
+            {
+                LOG_ERROR("RDR2 still requests legacy EXT buffer device address; leaving device unchanged. "
+                          "FSR4 descriptor buffers require KHR/core addressing selected before vkCreateDevice.");
+                return VK_SUCCESS;
+            }
+        }
+        LOG_INFO("RDR2 Proton: no legacy EXT address request; enabling supported FFX KHR/core capabilities");
+    }
+
     if (vkDeviceExtensions.size() == 0)
     {
         LOG_INFO("vkDeviceExtensions is empty, enumerating device extensions");
@@ -823,7 +843,8 @@ VkResult VulkanSpoofing::hkvkCreateDevice(VkPhysicalDevice physicalDevice, VkDev
 
         addExtension(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
 
-        addExtension(VK_EXT_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
+        if (!PreferModernRdr2Bda())
+            addExtension(VK_EXT_BUFFER_DEVICE_ADDRESS_EXTENSION_NAME);
 
         if (primaryGpu.dlssCapable)
         {
@@ -909,6 +930,13 @@ inline static VkResult hkvkEnumerateDeviceExtensionProperties(VkPhysicalDevice p
                                                               VkExtensionProperties* pProperties)
 {
     LOG_FUNC();
+
+    if (PreferModernRdr2Bda() && !State::Instance().creatingD3DDevice && !State::Instance().vulkanSkipHooks)
+    {
+        LOG_DEBUG("RDR2 Proton: enumerating extensions with modern BDA preference");
+        return VulkanLegacyBda::Enumerate(o_vkEnumerateDeviceExtensionProperties, physicalDevice,
+                                         pLayerName, pPropertyCount, pProperties);
+    }
 
     uint32_t count = 0;
 
@@ -1093,7 +1121,7 @@ PFN_vkVoidFunction VulkanSpoofing::hkvkGetInstanceProcAddr(const PFN_vkVoidFunct
         }
     }
 
-    if (Config::Instance()->VulkanExtensionSpoofing.value_or_default())
+    if (Config::Instance()->VulkanExtensionSpoofing.value_or_default() || PreferModernRdr2Bda())
     {
         if (procName == std::string("vkEnumerateInstanceExtensionProperties"))
         {
@@ -1180,7 +1208,7 @@ PFN_vkVoidFunction VulkanSpoofing::hkvkGetDeviceProcAddr(const PFN_vkVoidFunctio
         }
     }
 
-    if (Config::Instance()->VulkanExtensionSpoofing.value_or_default())
+    if (Config::Instance()->VulkanExtensionSpoofing.value_or_default() || PreferModernRdr2Bda())
     {
         if (procName == std::string("vkEnumerateInstanceExtensionProperties"))
         {
@@ -1282,7 +1310,7 @@ void VulkanSpoofing::HookForVulkanExtensionSpoofing(HMODULE vulkanModule)
     {
         FARPROC address = nullptr;
 
-        if (Config::Instance()->VulkanExtensionSpoofing.value_or_default())
+        if (Config::Instance()->VulkanExtensionSpoofing.value_or_default() || PreferModernRdr2Bda())
         {
             address = KernelBaseProxy::GetProcAddress_()(vulkanModule, "vkEnumerateInstanceExtensionProperties");
             o_vkEnumerateInstanceExtensionProperties = (PFN_vkEnumerateInstanceExtensionProperties) address;
