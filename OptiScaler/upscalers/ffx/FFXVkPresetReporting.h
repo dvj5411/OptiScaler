@@ -24,8 +24,7 @@ inline bool CanForce(uint32_t mask, uint32_t preset)
     return preset == FSR4VK_PRESET_AUTO || (preset < 32 && (mask & (1u << preset)) != 0);
 }
 
-inline ffxReturnCode_t Apply(PfnFfxConfigure configure, ffxContext* context,
-                            uint32_t mask, uint32_t preset)
+inline ffxReturnCode_t Apply(PfnFfxConfigure configure, ffxContext* context, uint32_t mask, uint32_t preset)
 {
     if (configure == nullptr || context == nullptr || *context == nullptr || !CanForce(mask, preset))
         return FFX_API_RETURN_ERROR_PARAMETER;
@@ -53,8 +52,7 @@ inline std::optional<uint32_t> Read(PfnFfxQuery query, ffxContext* context, bool
     desc.header.type = FSR4VK_QUERY_DESC_TYPE_ACTIVE_PRESET;
     desc.activePreset = FSR4VK_PRESET_UNKNOWN;
     const auto result = query(context, &desc.header);
-    if (result == FFX_API_RETURN_ERROR_UNKNOWN_DESCTYPE ||
-        result == ProviderNoSupportNewDescriptor)
+    if (result == FFX_API_RETURN_ERROR_UNKNOWN_DESCTYPE || result == ProviderNoSupportNewDescriptor)
         supported = false; // Older/other providers: probe only once per context.
 
     if (result != FFX_API_RETURN_OK)
