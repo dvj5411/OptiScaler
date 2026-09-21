@@ -208,12 +208,12 @@ bool FFXFeatureVk::InitFFX(const NVSDK_NGX_Parameter* InParameters)
     }
 
     const auto supportedPresets = FFXVkPresetReporting::SupportedPresets(FfxApiProxy::VULKAN_Query(), &_context);
-    const auto requestedPreset = Config::Instance()->Fsr4Preset.has_value()
-                                     ? Config::Instance()->Fsr4Preset.value() : FSR4VK_PRESET_AUTO;
+    const auto requestedPreset =
+        Config::Instance()->Fsr4Preset.has_value() ? Config::Instance()->Fsr4Preset.value() : FSR4VK_PRESET_AUTO;
     if (supportedPresets.has_value())
     {
-        const auto result = FFXVkPresetReporting::Apply(FfxApiProxy::VULKAN_Configure(), &_context,
-                                                       *supportedPresets, requestedPreset);
+        const auto result =
+            FFXVkPresetReporting::Apply(FfxApiProxy::VULKAN_Configure(), &_context, *supportedPresets, requestedPreset);
         if (result != FFX_API_RETURN_OK)
             LOG_WARN("Vulkan FSR4 preset {} rejected; new context remains Auto ({})", requestedPreset,
                      FfxApiProxy::ReturnCodeToString(result));

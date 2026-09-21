@@ -2668,17 +2668,24 @@ void MenuCommon::RenderActiveUpscalerSettings(RenderMenuContext& ctx)
             if (_ffxUpscalerIndex < 0)
                 _ffxUpscalerIndex = config->FfxUpscalerIndex.value_or_default();
 
-            if (currentBackend == Upscaler::FFX ||
-                currentBackend == Upscaler::FFX_on12 && state.ffxUpscalerVersionNames.size() > 0)
+            if ((currentBackend == Upscaler::FFX || currentBackend == Upscaler::FFX_on12) &&
+                !state.ffxUpscalerVersionNames.empty())
             {
-                ImGui::PushItemWidth(135.0f * menuResScale);
-
-                auto currentName = StrFmt("FSR %s", state.ffxUpscalerVersionNames[_ffxUpscalerIndex]);
+                ImGui::PushItemWidth(190.0f * menuResScale);
+                if (_ffxUpscalerIndex >= state.ffxUpscalerVersionNames.size())
+                    _ffxUpscalerIndex = 0;
+                const auto displayName = [](const char* version)
+                {
+                    return StrFmt(std::string_view(version).find("VK INT8") != std::string_view::npos ? "FSR%s"
+                                                                                                      : "FSR %s",
+                                  version);
+                };
+                auto currentName = displayName(state.ffxUpscalerVersionNames[_ffxUpscalerIndex]);
                 if (ImGui::BeginCombo("FFX Upscaler", currentName.c_str()))
                 {
                     for (int n = 0; n < state.ffxUpscalerVersionIds.size(); n++)
                     {
-                        auto name = StrFmt("FSR %s##%d", state.ffxUpscalerVersionNames[n], n);
+                        auto name = displayName(state.ffxUpscalerVersionNames[n]) + StrFmt("##%d", n);
                         if (ImGui::Selectable(name.c_str(), config->FfxUpscalerIndex.value_or_default() == n))
                             _ffxUpscalerIndex = n;
                     }
