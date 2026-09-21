@@ -2670,9 +2670,11 @@ void MenuCommon::RenderActiveUpscalerSettings(RenderMenuContext& ctx)
                 ImGui::PushItemWidth(190.0f * menuResScale);
                 if (_ffxUpscalerIndex >= state.ffxUpscalerVersionNames.size())
                     _ffxUpscalerIndex = 0;
-                const auto displayName = [](const char* version) {
-                    return StrFmt(std::string_view(version).find("VK INT8") != std::string_view::npos
-                                      ? "FSR%s" : "FSR %s", version);
+                const auto displayName = [](const char* version)
+                {
+                    return StrFmt(std::string_view(version).find("VK INT8") != std::string_view::npos ? "FSR%s"
+                                                                                                      : "FSR %s",
+                                  version);
                 };
                 auto currentName = displayName(state.ffxUpscalerVersionNames[_ffxUpscalerIndex]);
                 if (ImGui::BeginCombo("FFX Upscaler", currentName.c_str()))
