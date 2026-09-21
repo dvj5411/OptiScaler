@@ -1,6 +1,8 @@
 #include "pch.h"
 
 #include "OptiTypes.h"
+#include "Config.h"
+#include "State.h"
 #include <misc/IdentifyGpu.h>
 #include <unordered_map>
 
@@ -50,6 +52,17 @@ std::string UpscalerDisplayName(Upscaler upscaler, API api)
         return "FSR 3.1";
 
     case Upscaler::FFX:
+        if (api == API::Vulkan)
+        {
+            const auto& versions = State::Instance().ffxUpscalerVersionNames;
+            const auto index = Config::Instance()->FfxUpscalerIndex.value_or_default();
+            if (index >= 0 && static_cast<size_t>(index) < versions.size())
+            {
+                const std::string version = versions[index];
+                if (version == "4.0.2VK INT8" || version == "4.1.1VK INT8")
+                    return "FSR" + version.substr(0, version.find(' '));
+            }
+        }
         if (fsr4Capable && api == API::DX12)
             return "FSR 3.X/4";
         else
